@@ -6,8 +6,12 @@ import time
 import uuid
 import json
 import sys
+import logging
+import requests
+from log import LoggerWriter
 from psycopg2.extras import RealDictCursor
 from urllib.parse import urlparse
+from os import makedirs
 from os.path import join, splitext
 from download import download_file, DownloaderException
 from gallery_dl import text
@@ -64,7 +68,18 @@ initial_api = 'https://www.patreon.com/api/stream' + '?include=' + ','.join([
     'url'
 ]) + '&json-api-use-default-includes=false' + '&json-api-version=1.0'
 
-def import_posts(key, url = initial_api):
+def import_posts(log_id, key, url = initial_api):
+    makedirs(join(config.download_path, 'logs'), exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s:%(levelname)s:%(name)s:%(message)s',
+        filename=join(config.download_path, 'logs', f'{log_id}.log'),
+        filemode='a'
+    )
+    log = logging.getLogger(log_id)
+    sys.stdout = LoggerWriter(log, logging.INFO)
+    sys.stderr = LoggerWriter(log, logging.ERROR)
+
     conn = psycopg2.connect(
         host = config.database_host,
         dbname = config.database_dbname,
@@ -73,9 +88,14 @@ def import_posts(key, url = initial_api):
         cursor_factory = RealDictCursor
     )
 
-    scraper = cloudscraper.create_scraper()
-    scraper_data = scraper.get(url, cookies = { 'session_id': key }, proxies=get_proxy()).json()
-
+    try:
+        scraper = cloudscraper.create_scraper().get(url, cookies = { 'session_id': key }, proxies=get_proxy())
+        scraper_data = scraper.json()
+        scraper.raise_for_status()
+    except requests.HTTPError:
+        print(f'Error: Status code {scraper_data.status_code} when contacting Patreon API.')
+        return
+    
     for post in scraper_data['data']:
         try:
             file_directory = f"files/{post['relationships']['user']['data']['id']}/{post['id']}"
@@ -85,6 +105,7 @@ def import_posts(key, url = initial_api):
             cursor1.execute("SELECT * FROM dnp WHERE id = %s AND service = 'patreon'", (post['relationships']['user']['data']['id'],))
             bans = cursor1.fetchall()
             if len(bans) > 0:
+                print(f"Skipping ID {post['id']}: user {post['relationships']['user']['data']['id']} is banned")
                 continue
             
             check_for_flags(
@@ -198,15 +219,19 @@ def import_posts(key, url = initial_api):
             cursor3 = conn.cursor()
             cursor3.execute(query, list(post_model.values()))
             conn.commit()
-        except DownloaderException:
+            print(f"Finished importing {post['id']}!")
+        except Exception as e:
+            print(f"Error while importing {post['id']}: {e}")
             continue
 
     conn.close()
     if scraper_data['links'].get('next'):
-        import_posts(key, 'https://' + scraper_data['links']['next'])
-
+        import_posts(log_id, key, 'https://' + scraper_data['links']['next'])
+    else:
+        print('Finished scanning for posts.')
+        print('No posts detected? You either entered your session key incorrectly, or are not subscribed to any artists.')
 if __name__ == '__main__':
     if len(sys.argv) > 1:
-        import_posts(sys.argv[1])
+        import_posts(str(uuid.uuid4()), sys.argv[1])
     else:
         print('Argument required - Login token')

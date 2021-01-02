@@ -3,6 +3,9 @@ import psycopg2
 import datetime
 import config
 import json
+import uuid
+import logging
+from log import LoggerWriter
 from gallery_dl import job
 from gallery_dl import config as dlconfig
 from gallery_dl.extractor.message import Message
@@ -12,6 +15,7 @@ from flag_check import check_for_flags
 from proxy import get_proxy
 from io import StringIO
 from html.parser import HTMLParser
+from os import makedirs
 from os.path import join
 from proxy import get_proxy
 
@@ -32,7 +36,18 @@ def strip_tags(html):
     s.feed(html)
     return s.get_data()
 
-def import_posts(key):
+def import_posts(log_id, key):
+    makedirs(join(config.download_path, 'logs'), exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s:%(levelname)s:%(name)s:%(message)s',
+        filename=join(config.download_path, 'logs', f'{log_id}.log'),
+        filemode='a'
+    )
+    log = logging.getLogger(log_id)
+    sys.stdout = LoggerWriter(log,logging.INFO)
+    sys.stderr = LoggerWriter(log,logging.ERROR)
+
     conn = psycopg2.connect(
         host = config.database_host,
         dbname = config.database_dbname,
@@ -61,6 +76,7 @@ def import_posts(key):
                 cursor1.execute("SELECT * FROM dnp WHERE id = %s AND service = 'subscribestar'", (post['author_name'],))
                 bans = cursor1.fetchall()
                 if len(bans) > 0:
+                    print(f"Skipping ID {post['post_id']}: user {post['author_name']} is banned")
                     continue
                 
                 check_for_flags(
@@ -126,13 +142,15 @@ def import_posts(key):
                 cursor3 = conn.cursor()
                 cursor3.execute(query, list(post_model.values()))
                 conn.commit()
-        except DownloaderException:
+        except Exception as e:
+            print(f"Error while importing {post['post_id']}: {e}")
             continue
     
     conn.close()
+    print('Finished scanning for posts.')
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
-        import_posts(sys.argv[1])
+        import_posts(str(uuid.uuid4()), sys.argv[1])
     else:
         print('Argument required - Login token')

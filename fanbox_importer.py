@@ -6,14 +6,29 @@ import requests
 import datetime
 import config
 import json
+import logging
+import uuid
 
+from log import LoggerWriter
 from psycopg2.extras import RealDictCursor
 from PixivUtil2.PixivModelFanbox import FanboxArtist, FanboxPost
 from proxy import get_proxy
 from download import download_file, DownloaderException
 from flag_check import check_for_flags
+from os import makedirs
 from os.path import join
-def import_posts(key, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
+def import_posts(log_id, key, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
+    makedirs(join(config.download_path, 'logs'), exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s:%(levelname)s:%(name)s:%(message)s',
+        filename=join(config.download_path, 'logs', f'{log_id}.log'),
+        filemode='a'
+    )
+    log = logging.getLogger(log_id)
+    sys.stdout = LoggerWriter(log,logging.INFO)
+    sys.stderr = LoggerWriter(log,logging.ERROR)
+
     conn = psycopg2.connect(
         host = config.database_host,
         dbname = config.database_dbname,
@@ -22,12 +37,17 @@ def import_posts(key, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'
         cursor_factory = RealDictCursor
     )
 
-    scraper_data = requests.get(
-        url,
-        cookies={ 'FANBOXSESSID': key },
-        headers={ 'origin': 'https://fanbox.cc' },
-        proxies=get_proxy()
-    ).json()
+    try:
+        scraper = requests.get(
+            url,
+            cookies={ 'FANBOXSESSID': key },
+            headers={ 'origin': 'https://fanbox.cc' },
+            proxies=get_proxy()
+        )
+        scraper_data = scraper.json()
+    except requests.HTTPError:
+        print(f'Error: Status code {scraper.status_code} when contacting Patreon API.')
+        return
 
     if scraper_data.get('body'):
         for post in scraper_data['body']['items']:
@@ -42,6 +62,7 @@ def import_posts(key, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'
                 cursor1.execute("SELECT * FROM dnp WHERE id = %s AND service = 'fanbox'", (post['user']['userId'],))
                 bans = cursor1.fetchall()
                 if len(bans) > 0:
+                    print(f"Skipping ID {post['id']}: user {post['user']['userId']} is banned")
                     continue
                 
                 check_for_flags(
@@ -108,15 +129,18 @@ def import_posts(key, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'
                 cursor3 = conn.cursor()
                 cursor3.execute(query, list(post_model.values()))
                 conn.commit()
-            except DownloaderException:
+                print(f"Finished importing {post['id']}!")
+            except Exception as e:
+                print(f"Error while importing {post['id']}: {e}")
                 continue
             
     conn.close()
     if scraper_data['body'].get('nextUrl'):
-        import_posts(key, scraper_data['body']['nextUrl'])
-
+        import_posts(log_id, key, scraper_data['body']['nextUrl'])
+    else:
+        print('Finished scanning for posts.')
 if __name__ == '__main__':
     if len(sys.argv) > 1:
-        import_posts(sys.argv[1])
+        import_posts(str(uuid.uuid4()), sys.argv[1])
     else:
         print('Argument required - Login token')
