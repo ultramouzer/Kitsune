@@ -5,7 +5,7 @@ import config
 import json
 import uuid
 import logging
-from log import LoggerWriter
+
 from gallery_dl import job
 from gallery_dl import config as dlconfig
 from gallery_dl.extractor.message import Message
@@ -38,15 +38,8 @@ def strip_tags(html):
 
 def import_posts(log_id, key):
     makedirs(join(config.download_path, 'logs'), exist_ok=True)
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s:%(levelname)s:%(name)s:%(message)s',
-        filename=join(config.download_path, 'logs', f'{log_id}.log'),
-        filemode='a'
-    )
-    log = logging.getLogger(log_id)
-    sys.stdout = LoggerWriter(log,logging.INFO)
-    sys.stderr = LoggerWriter(log,logging.ERROR)
+    sys.stdout = open(join(config.download_path, 'logs', f'{log_id}.log'), 'w')
+    sys.stderr = open(join(config.download_path, 'logs', f'{log_id}.log'), 'w')
 
     conn = psycopg2.connect(
         host = config.database_host,

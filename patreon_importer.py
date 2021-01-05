@@ -8,7 +8,7 @@ import json
 import sys
 import logging
 import requests
-from log import LoggerWriter
+
 from psycopg2.extras import RealDictCursor
 from urllib.parse import urlparse
 from os import makedirs
@@ -70,15 +70,8 @@ initial_api = 'https://www.patreon.com/api/stream' + '?include=' + ','.join([
 
 def import_posts(log_id, key, url = initial_api):
     makedirs(join(config.download_path, 'logs'), exist_ok=True)
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s:%(levelname)s:%(name)s:%(message)s',
-        filename=join(config.download_path, 'logs', f'{log_id}.log'),
-        filemode='a'
-    )
-    log = logging.getLogger(log_id)
-    sys.stdout = LoggerWriter(log, logging.INFO)
-    sys.stderr = LoggerWriter(log, logging.ERROR)
+    sys.stdout = open(join(config.download_path, 'logs', f'{log_id}.log'), 'w')
+    sys.stderr = open(join(config.download_path, 'logs', f'{log_id}.log'), 'w')
 
     conn = psycopg2.connect(
         host = config.database_host,
@@ -230,6 +223,9 @@ def import_posts(log_id, key, url = initial_api):
     else:
         print('Finished scanning for posts.')
         print('No posts detected? You either entered your session key incorrectly, or are not subscribed to any artists.')
+    sys.stdout.close()
+    sys.stderr.close()
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         import_posts(str(uuid.uuid4()), sys.argv[1])

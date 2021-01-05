@@ -9,7 +9,6 @@ import json
 import logging
 import uuid
 
-from log import LoggerWriter
 from psycopg2.extras import RealDictCursor
 from PixivUtil2.PixivModelFanbox import FanboxArtist, FanboxPost
 from proxy import get_proxy
@@ -19,15 +18,8 @@ from os import makedirs
 from os.path import join
 def import_posts(log_id, key, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
     makedirs(join(config.download_path, 'logs'), exist_ok=True)
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s:%(levelname)s:%(name)s:%(message)s',
-        filename=join(config.download_path, 'logs', f'{log_id}.log'),
-        filemode='a'
-    )
-    log = logging.getLogger(log_id)
-    sys.stdout = LoggerWriter(log,logging.INFO)
-    sys.stderr = LoggerWriter(log,logging.ERROR)
+    sys.stdout = open(join(config.download_path, 'logs', f'{log_id}.log'), 'w')
+    sys.stderr = open(join(config.download_path, 'logs', f'{log_id}.log'), 'w')
 
     conn = psycopg2.connect(
         host = config.database_host,
