@@ -81,8 +81,8 @@ def download_file(ddir, url, name = None, **kwargs):
                 filename = uniquify(join(ddir, filename))
                 # content integrity
                 is_image = r.headers.get('content-type') == 'image/png' or r.headers.get('content-type') == 'image/jpeg'
-                if r.headers.get('content-length') and getsize(join(ddir, temp_name)) < int(r.headers.get('content-length')):
-                    reported_size = getsize(join(ddir, temp_name))
+                if r.headers.get('content-length') and r.raw.tell() < int(r.headers.get('content-length')):
+                    reported_size = r.raw.tell()
                     downloaded_size = r.headers.get('content-length')
                     raise DownloaderException(f'Downloaded size is less than reported; {downloaded_size} < {reported_size}')
                 elif r.headers.get('content-length') is None and is_image:
