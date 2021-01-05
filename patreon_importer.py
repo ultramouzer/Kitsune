@@ -70,8 +70,8 @@ initial_api = 'https://www.patreon.com/api/stream' + '?include=' + ','.join([
 
 def import_posts(log_id, key, url = initial_api):
     makedirs(join(config.download_path, 'logs'), exist_ok=True)
-    sys.stdout = open(join(config.download_path, 'logs', f'{log_id}.log'), 'w')
-    sys.stderr = open(join(config.download_path, 'logs', f'{log_id}.log'), 'w')
+    sys.stdout = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
+    sys.stderr = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
 
     conn = psycopg2.connect(
         host = config.database_host,
