@@ -6,6 +6,7 @@ import json
 import uuid
 import logging
 
+from indexer import index_artists
 from gallery_dl import job
 from gallery_dl import config as dlconfig
 from gallery_dl.extractor.message import Message
@@ -141,6 +142,7 @@ def import_posts(log_id, key):
     
     conn.close()
     print('Finished scanning for posts.')
+    index_artists()
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

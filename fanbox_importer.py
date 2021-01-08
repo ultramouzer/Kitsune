@@ -9,6 +9,7 @@ import json
 import logging
 import uuid
 
+from indexer import index_artists
 from psycopg2.extras import RealDictCursor
 from PixivUtil2.PixivModelFanbox import FanboxArtist, FanboxPost
 from proxy import get_proxy
@@ -131,6 +132,7 @@ def import_posts(log_id, key, url = 'https://api.fanbox.cc/post.listSupporting?l
         import_posts(log_id, key, scraper_data['body']['nextUrl'])
     else:
         print('Finished scanning for posts.')
+        index_artists()
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         import_posts(str(uuid.uuid4()), sys.argv[1])

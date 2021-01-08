@@ -9,6 +9,7 @@ import sys
 import logging
 import requests
 
+from indexer import index_artists
 from psycopg2.extras import RealDictCursor
 from urllib.parse import urlparse
 from os import makedirs
@@ -223,6 +224,7 @@ def import_posts(log_id, key, url = initial_api):
     else:
         print('Finished scanning for posts.')
         print('No posts detected? You either entered your session key incorrectly, or are not subscribed to any artists.')
+        index_artists()
     sys.stdout.close()
     sys.stderr.close()
 
