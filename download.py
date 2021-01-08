@@ -7,7 +7,6 @@ import shutil
 import functools
 import urllib
 from os import rename, makedirs
-from subprocess import Popen, PIPE
 from os.path import join, getsize, exists, splitext, basename
 from PIL import Image
 from proxy import get_proxy
@@ -58,13 +57,6 @@ def slugify(text):
     text = u'_'.join(text.split())
     return text
 
-def check_image_integrity(path):
-    proc = Popen(['identify', '-verbose', path], stdout=PIPE, stderr=PIPE)
-    _, err = proc.communicate()
-    exitcode = proc.returncode
-    if exitcode != 0 or err != "":
-        raise DownloaderException('Image integrity check failed')
-
 def download_file(ddir, url, name = None, **kwargs):
     temp_name = str(uuid.uuid4()) + '.temp'
     tries = 10
@@ -94,7 +86,15 @@ def download_file(ddir, url, name = None, **kwargs):
                     downloaded_size = r.headers.get('content-length')
                     raise DownloaderException(f'Downloaded size is less than reported; {downloaded_size} < {reported_size}')
                 elif r.headers.get('content-length') is None and is_image:
-                    check_image_integrity(join(ddir, temp_name))
+                    try:
+                        im = Image.open(join(ddir, temp_name))
+                        im.verify()
+                        im.close()
+                        im = Image.open(join(ddir, temp_name)) 
+                        im.transpose(Image.FLIP_LEFT_RIGHT)
+                        im.close()
+                    except:
+                        raise DownloaderException('Image integrity check failed')
                 file.close()
                 rename(join(ddir, temp_name), join(ddir, filename))
                 return filename, r
