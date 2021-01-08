@@ -79,7 +79,6 @@ def download_file(ddir, url, name = None, **kwargs):
                 # ensure unique filename
                 filename = uniquify(join(ddir, filename))
                 # content integrity
-                is_image = r.headers.get('content-type') == 'image/png' or r.headers.get('content-type') == 'image/jpeg'
                 if r.headers.get('content-length') and r.raw.tell() < int(r.headers.get('content-length')):
                     reported_size = r.raw.tell()
                     downloaded_size = r.headers.get('content-length')
