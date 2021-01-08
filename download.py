@@ -63,7 +63,7 @@ def check_image_integrity(path):
     _, err = proc.communicate()
     exitcode = proc.returncode
     if exitcode != 0 or err != "":
-        raise DownloaderException(f'Image integrity check failed: {err}')
+        raise DownloaderException('Image integrity check failed')
 
 def download_file(ddir, url, name = None, **kwargs):
     temp_name = str(uuid.uuid4()) + '.temp'
