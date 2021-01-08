@@ -1,10 +1,15 @@
 from flask import Flask, request
+from indexer import index_artists
 import patreon_importer
 import fanbox_importer
 import subscribestar_importer
 import threading
 import uuid
 app = Flask(__name__)
+
+@app.before_first_request
+def start():
+    index_artists()
 
 @app.route('/api/import', methods=['POST'])
 def import_api():
