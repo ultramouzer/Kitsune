@@ -18,7 +18,7 @@ def index_artists():
     results = cursor.fetchall()
 
     for post in results:
-        if post.service == 'patreon':
+        if post["service"] == 'patreon':
             scraper = cloudscraper.create_scraper()
             user = scraper.get('https://www.patreon.com/api/user/' + id).json()
             model = {
@@ -26,14 +26,14 @@ def index_artists():
                 "name": user["data"]["attributes"]["vanity"] or user["data"]["attributes"]["full_name"],
                 "service": "patreon"
             }
-        elif post.service == 'fanbox':
+        elif post["service"] == 'fanbox':
             user = requests.get('https://api.fanbox.cc/creator.get?userId=' + id, headers={"origin":"https://fanbox.cc"}).json()
             model = {
                 "id": post["user"],
                 "name": user["body"]["creatorId"],
                 "service": "fanbox"
             }
-        elif post.service == 'gumroad':
+        elif post["service"] == 'gumroad':
             data = requests.get('https://gumroad.com/' + id).text
             soup = BeautifulSoup(data, 'html.parser')
             model = {
@@ -41,7 +41,7 @@ def index_artists():
                 "name": soup.find('h2', class_='creator-profile-card__name js-creator-name').string.replace("\n", ""),
                 "service": "gumroad"
             }
-        elif post.service == 'subscribestar':
+        elif post["service"] == 'subscribestar':
             data = requests.get('https://subscribestar.adult/' + id).text
             soup = BeautifulSoup(data, 'html.parser')
             model = {
@@ -49,7 +49,7 @@ def index_artists():
                 "name": soup.find('div', class_='profile_main_info-name').string,
                 "service": "subscribestar"
             }
-        elif post.service == 'dlsite':
+        elif post["service"] == 'dlsite':
             data = requests.get('https://www.dlsite.com/eng/circle/profile/=/maker_id/' + id).text
             soup = BeautifulSoup(data, 'html.parser')
             model = {
