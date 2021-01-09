@@ -18,7 +18,6 @@ from io import StringIO
 from html.parser import HTMLParser
 from os import makedirs
 from os.path import join
-from proxy import get_proxy
 
 class MLStripper(HTMLParser):
     def __init__(self):
