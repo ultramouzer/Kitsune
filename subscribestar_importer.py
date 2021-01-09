@@ -137,6 +137,7 @@ def import_posts(log_id, key):
                 conn.commit()
         except Exception as e:
             print(f"Error while importing {post['post_id']}: {e}")
+            conn.rollback()
             continue
     
     conn.close()

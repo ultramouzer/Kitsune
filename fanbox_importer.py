@@ -125,6 +125,7 @@ def import_posts(log_id, key, url = 'https://api.fanbox.cc/post.listSupporting?l
                 print(f"Finished importing {post['id']}!")
             except Exception as e:
                 print(f"Error while importing {post['id']}: {e}")
+                conn.rollback()
                 continue
             
     conn.close()
