@@ -60,7 +60,7 @@ def index_artists():
         
         columns = model.keys()
         data = ['%s'] * len(model.values())
-        query = "INSERT INTO booru_posts ({fields}) VALUES ({values})".format(
+        query = "INSERT INTO lookup ({fields}) VALUES ({values})".format(
             fields = ','.join(columns),
             values = ','.join(data)
         )
