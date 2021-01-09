@@ -64,7 +64,7 @@ def index_artists():
             fields = ','.join(columns),
             values = ','.join(data)
         )
-        cursor.execute(query, model.values())
+        cursor.execute(query, list(model.values()))
         conn.commit()
 
     conn.close()
