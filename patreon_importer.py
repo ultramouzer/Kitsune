@@ -216,6 +216,7 @@ def import_posts(log_id, key, url = initial_api):
             print(f"Finished importing {post['id']}!")
         except Exception as e:
             print(f"Error while importing {post['id']}: {e}")
+            conn.rollback()
             continue
 
     conn.close()
