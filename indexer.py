@@ -68,7 +68,7 @@ def index_artists():
             cursor.execute(query, list(model.values()))
             conn.commit()
         except Exception as e:
-            print(f"Error while indexing user {post["user"]}: {e}")
+            print(f"Error while indexing user {post['user']}: {e}")
         
 
     conn.close()
