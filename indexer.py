@@ -20,21 +20,21 @@ def index_artists():
     for post in results:
         if post["service"] == 'patreon':
             scraper = cloudscraper.create_scraper()
-            user = scraper.get('https://www.patreon.com/api/user/' + id).json()
+            user = scraper.get('https://www.patreon.com/api/user/' + post["user"]).json()
             model = {
                 "id": post["user"],
                 "name": user["data"]["attributes"]["vanity"] or user["data"]["attributes"]["full_name"],
                 "service": "patreon"
             }
         elif post["service"] == 'fanbox':
-            user = requests.get('https://api.fanbox.cc/creator.get?userId=' + id, headers={"origin":"https://fanbox.cc"}).json()
+            user = requests.get('https://api.fanbox.cc/creator.get?userId=' + post["user"], headers={"origin":"https://fanbox.cc"}).json()
             model = {
                 "id": post["user"],
                 "name": user["body"]["creatorId"],
                 "service": "fanbox"
             }
         elif post["service"] == 'gumroad':
-            data = requests.get('https://gumroad.com/' + id).text
+            data = requests.get('https://gumroad.com/' + post["user"]).text
             soup = BeautifulSoup(data, 'html.parser')
             model = {
                 "id": post["user"],
@@ -42,7 +42,7 @@ def index_artists():
                 "service": "gumroad"
             }
         elif post["service"] == 'subscribestar':
-            data = requests.get('https://subscribestar.adult/' + id).text
+            data = requests.get('https://subscribestar.adult/' + post["user"]).text
             soup = BeautifulSoup(data, 'html.parser')
             model = {
                 "id": post["user"],
@@ -50,7 +50,7 @@ def index_artists():
                 "service": "subscribestar"
             }
         elif post["service"] == 'dlsite':
-            data = requests.get('https://www.dlsite.com/eng/circle/profile/=/maker_id/' + id).text
+            data = requests.get('https://www.dlsite.com/eng/circle/profile/=/maker_id/' + post["user"]).text
             soup = BeautifulSoup(data, 'html.parser')
             model = {
                 "id": post["user"],
