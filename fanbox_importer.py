@@ -127,13 +127,15 @@ def import_posts(log_id, key, url = 'https://api.fanbox.cc/post.listSupporting?l
                 print(f"Error while importing {post['id']}: {e}")
                 conn.rollback()
                 continue
-            
+        
+        if scraper_data['body'].get('nextUrl'):
+            import_posts(log_id, key, scraper_data['body']['nextUrl'])
+        else:
+            print('Finished scanning for posts.')
+            index_artists()
+    
     conn.close()
-    if scraper_data['body'].get('nextUrl'):
-        import_posts(log_id, key, scraper_data['body']['nextUrl'])
-    else:
-        print('Finished scanning for posts.')
-        index_artists()
+    
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         import_posts(str(uuid.uuid4()), sys.argv[1])
