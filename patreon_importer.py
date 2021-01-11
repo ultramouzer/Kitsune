@@ -8,6 +8,7 @@ import json
 import sys
 import logging
 import requests
+import traceback
 
 from indexer import index_artists
 from psycopg2.extras import RealDictCursor
@@ -215,6 +216,7 @@ def import_posts(log_id, key, url = initial_api):
             conn.commit()
             print(f"Finished importing {post['id']}!")
         except Exception as e:
+            print(traceback.format_exc())
             print(f"Error while importing {post['id']}: {e}")
             conn.rollback()
             continue
