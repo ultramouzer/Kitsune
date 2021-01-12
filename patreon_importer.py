@@ -184,19 +184,18 @@ def import_posts(log_id, key, url = initial_api):
                         })
 
             if post['relationships']['audio']['data']:
-                for audio in post['relationships']['audio']['data']:
-                    for media in list(filter(lambda included: included['id'] == audio['id'], scraper_data['included'])):
-                        if media['attributes']['state'] != 'ready':
-                            continue
-                        filename, _ = download_file(
-                            join(config.download_path, attachments_directory),
-                            media['attributes']['download_url'],
-                            name = media['attributes']['file_name']
-                        )
-                        post_model['attachments'].append({
-                            'name': filename,
-                            'path': f'/{attachments_directory}/{filename}'
-                        })
+                for media in list(filter(lambda included: included['id'] == post['relationships']['audio']['data']['id'], scraper_data['included'])):
+                    if media['attributes']['state'] != 'ready':
+                        continue
+                    filename, _ = download_file(
+                        join(config.download_path, attachments_directory),
+                        media['attributes']['download_url'],
+                        name = media['attributes']['file_name']
+                    )
+                    post_model['attachments'].append({
+                        'name': filename,
+                        'path': f'/{attachments_directory}/{filename}'
+                    })
 
             post_model['embed'] = json.dumps(post_model['embed'])
             post_model['file'] = json.dumps(post_model['file'])
