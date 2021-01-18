@@ -19,7 +19,7 @@ def check_for_flags(service, user, post):
         return
     
     cursor.execute('DELETE FROM booru_flags WHERE service = %s AND "user" = %s AND id = %s', (service, user, post))
-    cursor.execute('DELETE FROM booru_posts WHERE service = %s AND "user" = %s AND id = %s', (service, user, post))
+    cursor.execute(f'DELETE FROM {service}_posts WHERE service = %s AND "user" = %s AND id = %s', (service, user, post))
     conn.commit()
     rmtree(join(
         config.download_path,
