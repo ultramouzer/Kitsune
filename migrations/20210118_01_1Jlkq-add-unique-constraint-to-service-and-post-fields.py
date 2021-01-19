@@ -25,7 +25,7 @@ steps = [
         );
     """, "DROP TABLE posts"),
     step(
-        "INSERT INTO posts SELECT * FROM booru_posts ON CONFLICT DO NOTHING"
+        "INSERT INTO posts SELECT * FROM booru_posts ON CONFLICT DO NOTHING",
         "INSERT INTO booru_posts SELECT * FROM posts"
     ),
     step(
