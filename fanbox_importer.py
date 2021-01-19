@@ -65,7 +65,7 @@ def import_posts(log_id, key, url = 'https://api.fanbox.cc/post.listSupporting?l
                 )
 
                 cursor2 = conn.cursor()
-                cursor2.execute("SELECT * FROM booru_posts WHERE id = %s AND service = 'fanbox'", (post['id'],))
+                cursor2.execute("SELECT * FROM posts WHERE id = %s AND service = 'fanbox'", (post['id'],))
                 existing_posts = cursor2.fetchall()
                 if len(existing_posts) > 0:
                     continue
@@ -115,7 +115,7 @@ def import_posts(log_id, key, url = 'https://api.fanbox.cc/post.listSupporting?l
                 columns = post_model.keys()
                 data = ['%s'] * len(post_model.values())
                 data[-1] = '%s::jsonb[]' # attachments
-                query = "INSERT INTO booru_posts ({fields}) VALUES ({values})".format(
+                query = "INSERT INTO posts ({fields}) VALUES ({values})".format(
                     fields = ','.join(columns),
                     values = ','.join(data)
                 )

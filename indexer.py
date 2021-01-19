@@ -14,7 +14,7 @@ def index_artists():
         cursor_factory = RealDictCursor
     )
     cursor = conn.cursor()
-    cursor.execute('select "user", "service" from "booru_posts" as "post" where not exists (select * from "lookup" where id = post.user) group by "user", "service"')
+    cursor.execute('select "user", "service" from "posts" as "post" where not exists (select * from "lookup" where id = post.user) group by "user", "service"')
     results = cursor.fetchall()
 
     for post in results:
