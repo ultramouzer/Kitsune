@@ -1,22 +1,14 @@
 from flask import Flask, request
 from indexer import index_artists
-from yoyo import read_migrations
-from yoyo import get_backend
 import patreon_importer
 import fanbox_importer
 import subscribestar_importer
 import threading
-import config
 import uuid
 app = Flask(__name__)
 
 @app.before_first_request
 def start():
-    backend = get_backend(f'postgres://{config.database_user}:{config.database_password}@{config.database_host}/{config.database_dbname}')
-    migrations = read_migrations('./migrations')
-    with backend.lock():
-        backend.apply_migrations(backend.to_apply(migrations))
-    
     index_artists()
 
 @app.route('/api/import', methods=['POST'])

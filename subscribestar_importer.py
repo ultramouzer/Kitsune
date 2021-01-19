@@ -79,7 +79,7 @@ def import_posts(log_id, key):
                 )
 
                 cursor2 = conn.cursor()
-                cursor2.execute("SELECT * FROM subscribestar_posts WHERE id = %s AND service = 'subscribestar'", (str(post['post_id']),))
+                cursor2.execute("SELECT * FROM booru_posts WHERE id = %s AND service = 'subscribestar'", (str(post['post_id']),))
                 existing_posts = cursor2.fetchall()
                 if len(existing_posts) > 0:
                     continue
@@ -128,7 +128,7 @@ def import_posts(log_id, key):
                 columns = post_model.keys()
                 data = ['%s'] * len(post_model.values())
                 data[-1] = '%s::jsonb[]' # attachments
-                query = "INSERT INTO subscribestar_posts ({fields}) VALUES ({values})".format(
+                query = "INSERT INTO booru_posts ({fields}) VALUES ({values})".format(
                     fields = ','.join(columns),
                     values = ','.join(data)
                 )
