@@ -31,7 +31,7 @@ steps = [
     step(
         "DROP TABLE booru_posts",
         """
-        CREATE TABLE posts (
+        CREATE TABLE booru_posts (
             "id" varchar(255) NOT NULL,
             "user" varchar(255) NOT NULL,
             "service" varchar(20) NOT NULL,
