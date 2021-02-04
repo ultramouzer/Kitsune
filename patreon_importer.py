@@ -8,6 +8,7 @@ import json
 import sys
 import logging
 import requests
+import traceback
 
 from indexer import index_artists
 from psycopg2.extras import RealDictCursor
@@ -70,107 +71,122 @@ initial_api = 'https://www.patreon.com/api/stream' + '?include=' + ','.join([
 ]) + '&json-api-use-default-includes=false' + '&json-api-version=1.0'
 
 def import_posts(log_id, key, url = initial_api):
-    makedirs(join(config.download_path, 'logs'), exist_ok=True)
-    sys.stdout = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
-    sys.stderr = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
-
-    conn = psycopg2.connect(
-        host = config.database_host,
-        dbname = config.database_dbname,
-        user = config.database_user,
-        password = config.database_password,
-        cursor_factory = RealDictCursor
-    )
-
     try:
-        scraper = cloudscraper.create_scraper().get(url, cookies = { 'session_id': key }, proxies=get_proxy())
-        scraper_data = scraper.json()
-        scraper.raise_for_status()
-    except requests.HTTPError:
-        print(f'Error: Status code {scraper_data.status_code} when contacting Patreon API.')
-        return
-    
-    for post in scraper_data['data']:
+        makedirs(join(config.download_path, 'logs'), exist_ok=True)
+        sys.stdout = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
+        sys.stderr = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
+
+        conn = psycopg2.connect(
+            host = config.database_host,
+            dbname = config.database_dbname,
+            user = config.database_user,
+            password = config.database_password,
+            cursor_factory = RealDictCursor
+        )
+
         try:
-            file_directory = f"files/{post['relationships']['user']['data']['id']}/{post['id']}"
-            attachments_directory = f"attachments/{post['relationships']['user']['data']['id']}/{post['id']}"
+            scraper = cloudscraper.create_scraper().get(url, cookies = { 'session_id': key }, proxies=get_proxy())
+            scraper_data = scraper.json()
+            scraper.raise_for_status()
+        except requests.HTTPError:
+            print(f'Error: Status code {scraper_data.status_code} when contacting Patreon API.')
+            return
 
-            cursor1 = conn.cursor()
-            cursor1.execute("SELECT * FROM dnp WHERE id = %s AND service = 'patreon'", (post['relationships']['user']['data']['id'],))
-            bans = cursor1.fetchall()
-            if len(bans) > 0:
-                print(f"Skipping ID {post['id']}: user {post['relationships']['user']['data']['id']} is banned")
-                continue
-            
-            check_for_flags(
-                'patreon',
-                post['relationships']['user']['data']['id'],
-                post['id']
-            )
+        for post in scraper_data['data']:
+            try:
+                file_directory = f"files/{post['relationships']['user']['data']['id']}/{post['id']}"
+                attachments_directory = f"attachments/{post['relationships']['user']['data']['id']}/{post['id']}"
 
-            cursor2 = conn.cursor()
-            cursor2.execute("SELECT * FROM posts WHERE id = %s AND service = 'patreon'", (post['id'],))
-            existing_posts = cursor2.fetchall()
-            if len(existing_posts) > 0:
-                continue
+                cursor1 = conn.cursor()
+                cursor1.execute("SELECT * FROM dnp WHERE id = %s AND service = 'patreon'", (post['relationships']['user']['data']['id'],))
+                bans = cursor1.fetchall()
+                if len(bans) > 0:
+                    print(f"Skipping ID {post['id']}: user {post['relationships']['user']['data']['id']} is banned")
+                    continue
+                
+                check_for_flags(
+                    'patreon',
+                    post['relationships']['user']['data']['id'],
+                    post['id']
+                )
 
-            post_model = {
-                'id': post['id'],
-                '"user"': post['relationships']['user']['data']['id'],
-                'service': 'patreon',
-                'title': post['attributes']['title'],
-                'content': '',
-                'embed': {},
-                'shared_file': False,
-                'added': datetime.datetime.now(),
-                'published': post['attributes']['published_at'],
-                'edited': post['attributes']['edited_at'],
-                'file': {},
-                'attachments': []
-            }
+                cursor2 = conn.cursor()
+                cursor2.execute("SELECT * FROM posts WHERE id = %s AND service = 'patreon'", (post['id'],))
+                existing_posts = cursor2.fetchall()
+                if len(existing_posts) > 0:
+                    continue
 
-            if post['attributes']['content']:
-                post_model['content'] = post['attributes']['content']
-                for image in text.extract_iter(post['attributes']['content'], '<img data-media-id="', '>'):
-                    download_url = text.extract(image, 'src="', '"')[0]
-                    path = urlparse(download_url).path
-                    ext = splitext(path)[1]
-                    fn = str(uuid.uuid4()) + ext
+                post_model = {
+                    'id': post['id'],
+                    '"user"': post['relationships']['user']['data']['id'],
+                    'service': 'patreon',
+                    'title': post['attributes']['title'],
+                    'content': '',
+                    'embed': {},
+                    'shared_file': False,
+                    'added': datetime.datetime.now(),
+                    'published': post['attributes']['published_at'],
+                    'edited': post['attributes']['edited_at'],
+                    'file': {},
+                    'attachments': []
+                }
+
+                if post['attributes']['content']:
+                    post_model['content'] = post['attributes']['content']
+                    for image in text.extract_iter(post['attributes']['content'], '<img data-media-id="', '>'):
+                        download_url = text.extract(image, 'src="', '"')[0]
+                        path = urlparse(download_url).path
+                        ext = splitext(path)[1]
+                        fn = str(uuid.uuid4()) + ext
+                        filename, _ = download_file(
+                            join(config.download_path, 'inline'),
+                            download_url,
+                            name = fn
+                        )
+                        post_model['content'] = post_model['content'].replace(download_url, f"/inline/{filename}")
+
+                if post['attributes']['embed']:
+                    post_model['embed']['subject'] = post['attributes']['embed']['subject']
+                    post_model['embed']['description'] = post['attributes']['embed']['description']
+                    post_model['embed']['url'] = post['attributes']['embed']['url']
+
+                if post['attributes']['post_file']:
                     filename, _ = download_file(
-                        join(config.download_path, 'inline'),
-                        download_url,
-                        name = fn
+                        join(config.download_path, file_directory),
+                        post['attributes']['post_file']['url'],
+                        name = post['attributes']['post_file']['name']
                     )
-                    post_model['content'] = post_model['content'].replace(download_url, f"/inline/{filename}")
+                    post_model['file']['name'] = post['attributes']['post_file']['name']
+                    post_model['file']['path'] = f'/{file_directory}/{filename}'
 
-            if post['attributes']['embed']:
-                post_model['embed']['subject'] = post['attributes']['embed']['subject']
-                post_model['embed']['description'] = post['attributes']['embed']['description']
-                post_model['embed']['url'] = post['attributes']['embed']['url']
+                for attachment in post['relationships']['attachments']['data']:
+                    filename, _ = download_file(
+                        join(config.download_path, attachments_directory),
+                        f"https://www.patreon.com/file?h={post['id']}&i={attachment['id']}",
+                        cookies = { 'session_id': key }
+                    )
+                    post_model['attachments'].append({
+                        'name': filename,
+                        'path': f'/{attachments_directory}/{filename}'
+                    })
 
-            if post['attributes']['post_file']:
-                filename, _ = download_file(
-                    join(config.download_path, file_directory),
-                    post['attributes']['post_file']['url'],
-                    name = post['attributes']['post_file']['name']
-                )
-                post_model['file']['name'] = post['attributes']['post_file']['name']
-                post_model['file']['path'] = f'/{file_directory}/{filename}'
+                if post['relationships']['images']['data']:
+                    for image in post['relationships']['images']['data']:
+                        for media in list(filter(lambda included: included['id'] == image['id'], scraper_data['included'])):
+                            if media['attributes']['state'] != 'ready':
+                                continue
+                            filename, _ = download_file(
+                                join(config.download_path, attachments_directory),
+                                media['attributes']['download_url'],
+                                name = media['attributes']['file_name']
+                            )
+                            post_model['attachments'].append({
+                                'name': filename,
+                                'path': f'/{attachments_directory}/{filename}'
+                            })
 
-            for attachment in post['relationships']['attachments']['data']:
-                filename, _ = download_file(
-                    join(config.download_path, attachments_directory),
-                    f"https://www.patreon.com/file?h={post['id']}&i={attachment['id']}",
-                    cookies = { 'session_id': key }
-                )
-                post_model['attachments'].append({
-                    'name': filename,
-                    'path': f'/{attachments_directory}/{filename}'
-                })
-
-            if post['relationships']['images']['data']:
-                for image in post['relationships']['images']['data']:
-                    for media in list(filter(lambda included: included['id'] == image['id'], scraper_data['included'])):
+                if post['relationships']['audio']['data']:
+                    for media in list(filter(lambda included: included['id'] == post['relationships']['audio']['data']['id'], scraper_data['included'])):
                         if media['attributes']['state'] != 'ready':
                             continue
                         filename, _ = download_file(
@@ -183,50 +199,38 @@ def import_posts(log_id, key, url = initial_api):
                             'path': f'/{attachments_directory}/{filename}'
                         })
 
-            if post['relationships']['audio']['data']:
-                for media in list(filter(lambda included: included['id'] == post['relationships']['audio']['data']['id'], scraper_data['included'])):
-                    if media['attributes']['state'] != 'ready':
-                        continue
-                    filename, _ = download_file(
-                        join(config.download_path, attachments_directory),
-                        media['attributes']['download_url'],
-                        name = media['attributes']['file_name']
-                    )
-                    post_model['attachments'].append({
-                        'name': filename,
-                        'path': f'/{attachments_directory}/{filename}'
-                    })
+                post_model['embed'] = json.dumps(post_model['embed'])
+                post_model['file'] = json.dumps(post_model['file'])
+                for i in range(len(post_model['attachments'])):
+                    post_model['attachments'][i] = json.dumps(post_model['attachments'][i])
 
-            post_model['embed'] = json.dumps(post_model['embed'])
-            post_model['file'] = json.dumps(post_model['file'])
-            for i in range(len(post_model['attachments'])):
-                post_model['attachments'][i] = json.dumps(post_model['attachments'][i])
+                columns = post_model.keys()
+                data = ['%s'] * len(post_model.values())
+                data[-1] = '%s::jsonb[]' # attachments
+                query = "INSERT INTO posts ({fields}) VALUES ({values})".format(
+                    fields = ','.join(columns),
+                    values = ','.join(data)
+                )
+                cursor3 = conn.cursor()
+                cursor3.execute(query, list(post_model.values()))
+                conn.commit()
+                print(f"Finished importing {post['id']}!")
+            except Exception as e:
+                print(f"Error while importing {post['id']}: {e}")
+                conn.rollback()
+                continue
 
-            columns = post_model.keys()
-            data = ['%s'] * len(post_model.values())
-            data[-1] = '%s::jsonb[]' # attachments
-            query = "INSERT INTO posts ({fields}) VALUES ({values})".format(
-                fields = ','.join(columns),
-                values = ','.join(data)
-            )
-            cursor3 = conn.cursor()
-            cursor3.execute(query, list(post_model.values()))
-            conn.commit()
-            print(f"Finished importing {post['id']}!")
-        except Exception as e:
-            print(f"Error while importing {post['id']}: {e}")
-            conn.rollback()
-            continue
-
-    conn.close()
-    if scraper_data['links'].get('next'):
-        import_posts(log_id, key, 'https://' + scraper_data['links']['next'])
-    else:
-        print('Finished scanning for posts.')
-        print('No posts detected? You either entered your session key incorrectly, or are not subscribed to any artists.')
-        index_artists()
-    sys.stdout.close()
-    sys.stderr.close()
+        conn.close()
+        if scraper_data['links'].get('next'):
+            import_posts(log_id, key, 'https://' + scraper_data['links']['next'])
+        else:
+            print('Finished scanning for posts.')
+            print('No posts detected? You either entered your session key incorrectly, or are not subscribed to any artists.')
+            index_artists()
+        sys.stdout.close()
+        sys.stderr.close()
+    except Exception:
+        print(traceback.format_exc())
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
