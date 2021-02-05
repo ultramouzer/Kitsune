@@ -92,6 +92,8 @@ def import_posts(log_id, key, url = initial_api):
     
     for post in scraper_data['data']:
         try:
+            print(f"Starting import: {post['id']}")
+            
             file_directory = f"files/{post['relationships']['user']['data']['id']}/{post['id']}"
             attachments_directory = f"attachments/{post['relationships']['user']['data']['id']}/{post['id']}"
 

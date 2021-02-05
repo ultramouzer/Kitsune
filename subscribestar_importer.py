@@ -62,6 +62,8 @@ def import_posts(log_id, key):
             if message[0] == Message.Directory:
                 post = message[-1]
 
+                print(f"Starting import: {post['post_id']}!")
+
                 file_directory = f"files/subscribestar/{post['author_name']}/{post['post_id']}"
                 attachments_directory = f"attachments/subscribestar/{post['author_name']}/{post['post_id']}"
                 
@@ -135,8 +137,9 @@ def import_posts(log_id, key):
                 cursor3 = conn.cursor()
                 cursor3.execute(query, list(post_model.values()))
                 conn.commit()
+                print(f"Finished importing {post['post_id']}!")
         except Exception as e:
-            print(f"Error while importing {post['post_id']}: {e}")
+            print(f"Error while importing: {e}")
             conn.rollback()
             continue
     
