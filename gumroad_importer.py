@@ -56,8 +56,6 @@ def import_posts(log_id, key, startFrom = 1):
         user_id_nums = re.findall(r"\d+", user_id_element)
         user_id = list(filter(lambda el: len(el) == 13, user_id_nums))[0]
 
-        print(f"Starting import: {post_id}")
-
         file_directory = f"files/gumroad/{user_id}/{post_id}"
         attachments_directory = f"attachments/gumroad/{user_id}/{post_id}"
 
@@ -79,6 +77,8 @@ def import_posts(log_id, key, startFrom = 1):
         existing_posts = cursor2.fetchall()
         if len(existing_posts) > 0:
             continue
+
+        print(f"Starting import: {post_id}")
 
         post_model = {
             'id': post_id,

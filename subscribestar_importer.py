@@ -62,8 +62,6 @@ def import_posts(log_id, key):
             if message[0] == Message.Directory:
                 post = message[-1]
 
-                print(f"Starting import: {post['post_id']}!")
-
                 file_directory = f"files/subscribestar/{post['author_name']}/{post['post_id']}"
                 attachments_directory = f"attachments/subscribestar/{post['author_name']}/{post['post_id']}"
                 
@@ -85,6 +83,8 @@ def import_posts(log_id, key):
                 existing_posts = cursor2.fetchall()
                 if len(existing_posts) > 0:
                     continue
+
+                print(f"Starting import: {post['post_id']}!")
                 
                 stripped_content = strip_tags(post['content'])
                 post_model = {

@@ -48,8 +48,6 @@ def import_posts(log_id, key, url = 'https://api.fanbox.cc/post.listSupporting?l
             if parsed_post.is_restricted:
                 continue
             try:
-                print(f"Starting import: {post['id']}")
-
                 file_directory = f"files/fanbox/{post['user']['userId']}/{post['id']}"
                 attachments_directory = f"attachments/fanbox/{post['user']['userId']}/{post['id']}"
 
@@ -71,6 +69,8 @@ def import_posts(log_id, key, url = 'https://api.fanbox.cc/post.listSupporting?l
                 existing_posts = cursor2.fetchall()
                 if len(existing_posts) > 0:
                     continue
+
+                print(f"Starting import: {post['id']}")
 
                 post_model = {
                     'id': post['id'],
