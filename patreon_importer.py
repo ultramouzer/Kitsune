@@ -120,7 +120,7 @@ def import_posts(log_id, key, url = initial_api):
                 'id': post['id'],
                 '"user"': post['relationships']['user']['data']['id'],
                 'service': 'patreon',
-                'title': post['attributes']['title'],
+                'title': post['attributes']['title'] or "",
                 'content': '',
                 'embed': {},
                 'shared_file': False,
