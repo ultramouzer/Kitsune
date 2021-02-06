@@ -54,46 +54,42 @@ def import_icon(service, user):
     if not exists(join(config.download_path, 'icons', service, user)):
         try:
             if service == 'patreon':
-                scraper = cloudscraper.create_scraper().get('https://www.patreon.com/api/user/' + user)
+                scraper = cloudscraper.create_scraper().get('https://www.patreon.com/api/user/' + user, proxies=get_proxy())
                 data = scraper.json()
                 scraper.raise_for_status()
                 download_file(
                     join(config.download_path, 'icons', service),
                     data['included'][0]['attributes']['avatar_photo_url'] if data.get('included') else data['data']['attributes']['image_url'],
-                    name = user,
-                    proxies=get_proxy()
+                    name = user
                 )
             elif service == 'fanbox':
-                scraper = requests.get('https://api.fanbox.cc/creator.get?userId=' + user, headers={"origin":"https://fanbox.cc"})
+                scraper = requests.get('https://api.fanbox.cc/creator.get?userId=' + user, headers={"origin":"https://fanbox.cc"}, proxies=get_proxy())
                 data = scraper.json()
                 scraper.raise_for_status()
                 download_file(
                     join(config.download_path, 'icons', service),
                     data['body']['user']['iconUrl'],
-                    name = user,
-                    proxies=get_proxy()
+                    name = user
                 )
             elif service == 'subscribestar':
-                scraper = requests.get('https://subscribestar.adult/' + user)
+                scraper = requests.get('https://subscribestar.adult/' + user, proxies=get_proxy())
                 data = scraper.text
                 scraper.raise_for_status()
                 soup = BeautifulSoup(data, 'html.parser')
                 download_file(
                     join(config.download_path, 'icons', service),
                     soup.find('div', class_='profile_main_info-userpic').contents[0]['src'],
-                    name = user,
-                    proxies=get_proxy()
+                    name = user
                 )
             elif service == 'gumroad':
-                scraper = requests.get('https://gumroad.com/' + user)
+                scraper = requests.get('https://gumroad.com/' + user, proxies=get_proxy())
                 data = scraper.text
                 scraper.raise_for_status()
                 soup = BeautifulSoup(data, 'html.parser')
                 download_file(
                     join(config.download_path, 'icons', service),
                     re.findall(r'(?:http\:|https\:)?\/\/.*\.(?:png|jpe?g|gif)', soup.find('div', class_='profile-picture js-profile-picture')['style'], re.IGNORECASE)[0],
-                    name = user,
-                    proxies=get_proxy()
+                    name = user
                 )
             else:
                 with open(join(config.download_path, 'icons', service, user), 'w') as _: 
