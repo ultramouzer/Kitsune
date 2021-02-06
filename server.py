@@ -1,14 +1,22 @@
-from flask import Flask, request
+from flask import Flask, request, redirect
 from indexer import index_artists
 import patreon_importer
 import fanbox_importer
 import subscribestar_importer
 import gumroad_importer
+from bs4 import BeautifulSoup
 from yoyo import read_migrations
 from yoyo import get_backend
+from download import download_file
+from os.path import join, exists
+from os import makedirs
+import cloudscraper
+import requests
 import threading
 import config
 import uuid
+import re
+
 app = Flask(__name__)
 
 @app.before_first_request
@@ -38,3 +46,58 @@ def import_api():
         th = threading.Thread(target=gumroad_importer.import_posts, args=(log_id, request.args.get('session_key')))
         th.start()
     return log_id, 200
+
+@app.route('/icons/<service>/<user>')
+def import_icon(service, user):
+    makedirs(join(config.download_path, 'icons', service), exist_ok=True)
+    if not exists(join(config.download_path, 'icons', service, user)):
+        try:
+            if service == 'patreon':
+                scraper = cloudscraper.create_scraper().get('https://www.patreon.com/api/user/' + user)
+                data = scraper.json()
+                scraper.raise_for_status()
+                download_file(
+                    join(config.download_path, 'icons', service),
+                    data['included'][0]['attributes']['avatar_photo_url'] if data.get('included') else data['data']['attributes']['image_url'],
+                    name = user
+                )
+            elif service == 'fanbox':
+                scraper = requests.get('https://api.fanbox.cc/creator.get?userId=' + user, headers={"origin":"https://fanbox.cc"})
+                data = scraper.json()
+                scraper.raise_for_status()
+                download_file(
+                    join(config.download_path, 'icons', service),
+                    data['body']['user']['iconUrl'],
+                    name = user
+                )
+            elif service == 'subscribestar':
+                scraper = requests.get('https://subscribestar.adult/' + user)
+                data = scraper.text
+                scraper.raise_for_status()
+                soup = BeautifulSoup(data, 'html.parser')
+                download_file(
+                    join(config.download_path, 'icons', service),
+                    soup.find('div', class_='profile_main_info-userpic').contents[0]['src'],
+                    name = user
+                )
+            elif service == 'gumroad':
+                scraper = requests.get('https://gumroad.com/' + user)
+                data = scraper.text
+                scraper.raise_for_status()
+                soup = BeautifulSoup(data, 'html.parser')
+                download_file(
+                    join(config.download_path, 'icons', service),
+                    re.findall(r'(?:http\:|https\:)?\/\/.*\.(?:png|jpe?g|gif)', soup.find('div', class_='profile-picture js-profile-picture')['style'], re.IGNORECASE)[0],
+                    name = user
+                )
+            else:
+                with open(join(config.download_path, 'icons', service, user), 'w') as _: 
+                    pass
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                with open(join(config.download_path, 'icons', service, user), 'w') as _: 
+                    pass
+    
+    response = redirect(join('/', 'icons', service, user), code=302)
+    response.autocorrect_location_header = False
+    return response
