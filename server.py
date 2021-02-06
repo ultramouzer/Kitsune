@@ -3,6 +3,7 @@ from indexer import index_artists
 import patreon_importer
 import fanbox_importer
 import subscribestar_importer
+import gumroad_importer
 from yoyo import read_migrations
 from yoyo import get_backend
 import threading
@@ -32,5 +33,8 @@ def import_api():
         th.start()
     elif request.args.get('service') == 'subscribestar':
         th = threading.Thread(target=subscribestar_importer.import_posts, args=(log_id, request.args.get('session_key')))
+        th.start()
+    elif request.args.get('service') == 'gumroad':
+        th = threading.Thread(target=gumroad_importer.import_posts, args=(log_id, request.args.get('session_key')))
         th.start()
     return log_id, 200
