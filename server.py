@@ -9,6 +9,7 @@ from yoyo import read_migrations
 from yoyo import get_backend
 from download import download_file
 from os.path import join, exists
+from proxy import get_proxy
 from os import makedirs
 import cloudscraper
 import requests
@@ -59,7 +60,8 @@ def import_icon(service, user):
                 download_file(
                     join(config.download_path, 'icons', service),
                     data['included'][0]['attributes']['avatar_photo_url'] if data.get('included') else data['data']['attributes']['image_url'],
-                    name = user
+                    name = user,
+                    proxies=get_proxy()
                 )
             elif service == 'fanbox':
                 scraper = requests.get('https://api.fanbox.cc/creator.get?userId=' + user, headers={"origin":"https://fanbox.cc"})
@@ -68,7 +70,8 @@ def import_icon(service, user):
                 download_file(
                     join(config.download_path, 'icons', service),
                     data['body']['user']['iconUrl'],
-                    name = user
+                    name = user,
+                    proxies=get_proxy()
                 )
             elif service == 'subscribestar':
                 scraper = requests.get('https://subscribestar.adult/' + user)
@@ -78,7 +81,8 @@ def import_icon(service, user):
                 download_file(
                     join(config.download_path, 'icons', service),
                     soup.find('div', class_='profile_main_info-userpic').contents[0]['src'],
-                    name = user
+                    name = user,
+                    proxies=get_proxy()
                 )
             elif service == 'gumroad':
                 scraper = requests.get('https://gumroad.com/' + user)
@@ -88,7 +92,8 @@ def import_icon(service, user):
                 download_file(
                     join(config.download_path, 'icons', service),
                     re.findall(r'(?:http\:|https\:)?\/\/.*\.(?:png|jpe?g|gif)', soup.find('div', class_='profile-picture js-profile-picture')['style'], re.IGNORECASE)[0],
-                    name = user
+                    name = user,
+                    proxies=get_proxy()
                 )
             else:
                 with open(join(config.download_path, 'icons', service, user), 'w') as _: 
