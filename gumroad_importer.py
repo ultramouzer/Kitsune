@@ -136,7 +136,7 @@ def import_posts(log_id, key, startFrom = 1):
                 join(config.download_path, attachments_directory),
                 'https://gumroad.com' + download_data['download_info'][_file['id']]['download_url'],
                 name = f'{_file["file_name"]}.{_file["extension"].lower()}',
-                cookies = { 'session_id': key }
+                cookies = { '_gumroad_app_session': key }
             )
             post_model['attachments'].append({
                 'name': filename,
