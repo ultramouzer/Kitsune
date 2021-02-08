@@ -20,6 +20,9 @@ import re
 
 app = Flask(__name__)
 
+class FanboxIconException(Exception):
+    pass
+
 @app.before_first_request
 def start():
     backend = get_backend(f'postgres://{config.database_user}:{config.database_password}@{config.database_host}/{config.database_dbname}')
@@ -94,6 +97,8 @@ def import_icon(service, user):
             else:
                 with open(join(config.download_path, 'icons', service, user), 'w') as _: 
                     pass
+        except FanboxIconException:
+            return "This user doesn't have an icon.", 404
         except requests.HTTPError as e:
             if e.response.status_code == 404:
                 with open(join(config.download_path, 'icons', service, user), 'w') as _: 
