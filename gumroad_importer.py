@@ -13,6 +13,8 @@ from indexer import index_artists
 from flag_check import check_for_flags
 from psycopg2.extras import RealDictCursor
 from download import download_file, DownloaderException
+from urllib.parse import unquote, urlparse
+from pathlib import PurePosixPath
 from proxy import get_proxy
 from os.path import join
 from os import makedirs
@@ -52,9 +54,12 @@ def import_posts(log_id, key, startFrom = 1):
         post_id = product['data-permalink']
         purchase_id = product.find(class_='js-product')['data-purchase-id']
         title = product.select_one('.description-container h1 strong').string
-        user_id_element = product.find(class_='preview-container')['data-asset-previews']
-        user_id_nums = re.findall(r"\d+", user_id_element)
-        user_id = list(filter(lambda el: len(el) == 13, user_id_nums))[0]
+        user_href = product.select_one('.description-container .js-creator-profile-link')['href']
+        user_name = PurePosixPath(unquote(urlparse(user_href).path)).parts[1]
+        user_identifier_element = product.find(class_='preview-container')['data-asset-previews']
+        user_identifier_nums = re.findall(r"\d+", user_identifier_element)
+        user_identifiers = list(filter(lambda el: len(el) == 13, user_identifier_nums))
+        user_id = user_identifiers[0] if len(user_identifiers) > 0 else user_name
 
         file_directory = f"files/gumroad/{user_id}/{post_id}"
         attachments_directory = f"attachments/gumroad/{user_id}/{post_id}"
