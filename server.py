@@ -69,11 +69,14 @@ def import_icon(service, user):
                 scraper = requests.get('https://api.fanbox.cc/creator.get?userId=' + user, headers={"origin":"https://fanbox.cc"}, proxies=get_proxy())
                 data = scraper.json()
                 scraper.raise_for_status()
-                download_file(
-                    join(config.download_path, 'icons', service),
-                    data['body']['user']['iconUrl'],
-                    name = user
-                )
+                if data['body']['user']['iconUrl']:
+                    download_file(
+                        join(config.download_path, 'icons', service),
+                        data['body']['user']['iconUrl'],
+                        name = user
+                    )
+                else:
+                    raise FanboxIconException()
             elif service == 'subscribestar':
                 scraper = requests.get('https://subscribestar.adult/' + user, proxies=get_proxy())
                 data = scraper.text
@@ -98,7 +101,8 @@ def import_icon(service, user):
                 with open(join(config.download_path, 'icons', service, user), 'w') as _: 
                     pass
         except FanboxIconException:
-            return "This user doesn't have an icon.", 404
+            with open(join(config.download_path, 'icons', service, user), 'w') as _: 
+                pass
         except requests.HTTPError as e:
             if e.response.status_code == 404:
                 with open(join(config.download_path, 'icons', service, user), 'w') as _: 
