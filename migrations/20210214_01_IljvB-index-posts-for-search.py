@@ -10,6 +10,5 @@ steps = [
     step(
         "CREATE INDEX IF NOT EXISTS search_idx ON posts USING GIN (to_tsvector('english', content || ' ' || title))",
         "DROP INDEX search_idx"
-    ),
-    step("VACUUM ANALYZE posts")
+    )
 ]
