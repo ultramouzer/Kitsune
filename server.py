@@ -146,11 +146,14 @@ def import_banner(service, user):
                 data = scraper.text
                 scraper.raise_for_status()
                 soup = BeautifulSoup(data, 'html.parser')
-                download_file(
-                    join(config.download_path, 'banners', service),
-                    soup.find('div', class_='profile_main_info-cover').contents[0]['src'],
-                    name = user
-                )
+                if soup.find('div', class_='profile_main_info-cover'):
+                    download_file(
+                        join(config.download_path, 'banners', service),
+                        soup.find('div', class_='profile_main_info-cover').contents[0]['src'],
+                        name = user
+                    )
+                else:
+                    raise FanboxIconException()
             else:
                 with open(join(config.download_path, 'banners', service, user), 'w') as _: 
                     pass
