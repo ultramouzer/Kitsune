@@ -19,8 +19,19 @@ from os import makedirs
 from os.path import join
 def import_posts(log_id, key, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
     makedirs(join(config.download_path, 'logs'), exist_ok=True)
+    
+    # supress stdout, copy stderr
+    class Logger(object):
+        def __init__(self):
+            self.terminal = sys.stderr
+        def write(self, message):
+            with open(join(config.download_path, 'logs', f'{log_id}.log'), 'a') as log:
+                log.write(message)
+            self.terminal.write(message)
+        def flush(self):
+            pass
     sys.stdout = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
-    sys.stderr = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
+    sys.stderr = Logger()
 
     conn = psycopg2.connect(
         host = config.database_host,
@@ -136,6 +147,7 @@ def import_posts(log_id, key, url = 'https://api.fanbox.cc/post.listSupporting?l
             print('Finished scanning for posts.')
             index_artists()
     
+    sys.stdout.close()
     conn.close()
     
 if __name__ == '__main__':

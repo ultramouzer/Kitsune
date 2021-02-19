@@ -19,8 +19,19 @@ from os import makedirs
 
 def import_posts(log_id, key, startFrom = 1):
     makedirs(join(config.download_path, 'logs'), exist_ok=True)
+    
+    # supress stdout, copy stderr
+    class Logger(object):
+        def __init__(self):
+            self.terminal = sys.stderr
+        def write(self, message):
+            with open(join(config.download_path, 'logs', f'{log_id}.log'), 'a') as log:
+                log.write(message)
+            self.terminal.write(message)
+        def flush(self):
+            pass
     sys.stdout = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
-    sys.stderr = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
+    sys.stderr = Logger()
 
     conn = psycopg2.connect(
         host = config.database_host,
@@ -166,6 +177,7 @@ def import_posts(log_id, key, startFrom = 1):
         print('Finished scanning for posts.')
         index_artists()
     
+    sys.stdout.close()
     conn.close()
 
 if __name__ == '__main__':
