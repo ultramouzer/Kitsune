@@ -76,9 +76,9 @@ def import_posts(log_id, key, url = initial_api):
     class Logger(object):
         def __init__(self):
             self.terminal = sys.stderr
+            self.log = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
         def write(self, message):
-            with open(join(config.download_path, 'logs', f'{log_id}.log'), 'a') as log:
-                log.write(message)
+            self.log.write(message)
             self.terminal.write(message)
         def flush(self):
             pass
