@@ -72,7 +72,7 @@ initial_api = 'https://www.patreon.com/api/stream' + '?include=' + ','.join([
 def import_posts(log_id, key, url = initial_api):
     makedirs(join(config.download_path, 'logs'), exist_ok=True)
     sys.stdout = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
-    sys.stderr = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
+    # sys.stderr = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
 
     conn = psycopg2.connect(
         host = config.database_host,
@@ -228,7 +228,7 @@ def import_posts(log_id, key, url = initial_api):
         print('No posts detected? You either entered your session key incorrectly, or are not subscribed to any artists.')
         index_artists()
     sys.stdout.close()
-    sys.stderr.close()
+    # sys.stderr.close()
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
