@@ -227,8 +227,6 @@ def import_posts(log_id, key, url = initial_api):
         print('Finished scanning for posts.')
         print('No posts detected? You either entered your session key incorrectly, or are not subscribed to any artists.')
         index_artists()
-    sys.stdout.close()
-    # sys.stderr.close()
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
