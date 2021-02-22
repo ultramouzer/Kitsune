@@ -8,6 +8,8 @@ import uuid
 import json
 import datetime
 
+sys.setrecursionlimit(100000)
+
 from bs4 import BeautifulSoup
 from indexer import index_artists
 from flag_check import check_for_flags

@@ -1,5 +1,6 @@
 import sys
 sys.path.append('./PixivUtil2')
+sys.setrecursionlimit(100000)
 
 import psycopg2
 import requests

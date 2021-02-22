@@ -9,6 +9,8 @@ import sys
 import logging
 import requests
 
+sys.setrecursionlimit(100000)
+
 from indexer import index_artists
 from psycopg2.extras import RealDictCursor
 from urllib.parse import urlparse
