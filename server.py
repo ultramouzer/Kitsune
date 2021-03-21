@@ -17,20 +17,22 @@ import threading
 import config
 import uuid
 import re
+import logging
+import uwsgi
 
 app = Flask(__name__)
 
-class FanboxIconException(Exception):
-    pass
+logging.basicConfig(filename='kemono.log', level=logging.DEBUG)
 
-@app.before_first_request
-def start():
+if uwsgi.worker_id() == 0:
     backend = get_backend(f'postgres://{config.database_user}:{config.database_password}@{config.database_host}/{config.database_dbname}')
     migrations = read_migrations('./migrations')
     with backend.lock():
         backend.apply_migrations(backend.to_apply(migrations))
-    
     index_artists()
+
+class FanboxIconException(Exception):
+    pass
 
 @app.route('/api/import', methods=['POST'])
 def import_api():
