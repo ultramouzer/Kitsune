@@ -6,7 +6,7 @@ from flask import current_app
 
 from ..internals.utils.proxy import get_proxy
 from ..internals.cache.redis import delete_keys, delete_keys_pattern
-from ..internals.database.database import get_cursor, get_conn
+from ..internals.database.database import get_cursor, get_conn, return_conn
 
 def delete_artist_cache_keys(service, artist_id):
     artist_id = str(artist_id)
@@ -38,8 +38,9 @@ def is_artist_dnp(serviuce, artist_id):
     cursor.execute("SELECT * FROM dnp WHERE id = %s AND service = %s", (user_id, service,))
     return len(cursor.fetchall()) > 0
 
-def index_artists():
-    conn = get_conn()
+def index_artists(conn = None):
+    if conn is None:
+        conn = get_conn()
     cursor = conn.cursor()
     cursor.execute('select "user", "service" from "posts" as "post" where not exists (select * from "lookup" where id = post.user) group by "user", "service"')
     results = cursor.fetchall()
