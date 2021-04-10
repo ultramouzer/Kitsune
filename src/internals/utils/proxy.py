@@ -1,5 +1,6 @@
 import config
 import random
+import logging
 
 def get_proxy():
     if config.proxies and len(config.proxies):

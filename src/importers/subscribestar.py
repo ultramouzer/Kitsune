@@ -37,9 +37,8 @@ def strip_tags(html):
     s.feed(html)
     return s.get_data()
 
-def import_posts(log_id, key):
-    makedirs(join(config.download_path, 'logs'), exist_ok=True)
-    conn = get_conn()
+def import_posts(import_id, key):
+    log(import_id, 'Starting import', to_client = True)
 
     dlconfig.set(('output'), "mode", "null")
     dlconfig.set(('extractor', 'subscribestar'), "cookies", {
@@ -49,8 +48,9 @@ def import_posts(log_id, key):
     j = job.DataJob("https://subscribestar.adult/feed") 
     j.run()
     
-    user_id = None
 
+    conn = get_conn()
+    user_id = None
     for message in j.data:
         try:
             if message[0] == Message.Directory:

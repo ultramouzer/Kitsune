@@ -22,8 +22,7 @@ from ..internals.utils.utils import get_import_id
 from ..internals.utils.logger import log
 
 def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
-    makedirs(join(config.download_path, 'logs'), exist_ok=True)
-
+    log(import_id, 'Starting import', to_client = True)
     try:
         scraper = requests.get(
             url,

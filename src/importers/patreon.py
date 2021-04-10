@@ -72,9 +72,8 @@ initial_api = 'https://www.patreon.com/api/stream' + '?include=' + ','.join([
     'url'
 ]) + '&json-api-use-default-includes=false' + '&json-api-version=1.0'
 
-def import_posts(log_id, key, url = initial_api):
-    makedirs(join(config.download_path, 'logs'), exist_ok=True)
-    conn = get_conn()
+def import_posts(import_id, key, url = initial_api):
+    log(import_id, 'Starting import', to_client = True)
 
     try:
         scraper = cloudscraper.create_scraper().get(url, cookies = { 'session_id': key }, proxies=get_proxy())
@@ -84,8 +83,8 @@ def import_posts(log_id, key, url = initial_api):
         log(import_id, f"Status code {scraper_data.status_code} when contacting Patreon API.", 'exception')
         return
     
+    conn = get_conn()
     user_id = None
-
     for post in scraper_data['data']:
         try:
             user_id = post['relationships']['user']['data']['id']

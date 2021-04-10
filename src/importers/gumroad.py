@@ -21,9 +21,8 @@ from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.logger import log
 
-def import_posts(log_id, key, offset = 1):
-    makedirs(join(config.download_path, 'logs'), exist_ok=True)
-    conn = get_conn()
+def import_posts(import_id, key, offset = 1):
+    log(import_id, 'Starting import', to_client = True)
 
     try:
         scraper = cloudscraper.create_scraper().get(
@@ -43,8 +42,8 @@ def import_posts(log_id, key, offset = 1):
     soup = BeautifulSoup(scraper_data['products_html'], 'html.parser')
     products = soup.find_all(class_='product-card')
 	
+    conn = get_conn()
     user_id = None
-
     for product in products:
         post_id = product['data-permalink']
         purchase_id = product.find(class_='js-product')['data-purchase-id']
