@@ -1,7 +1,7 @@
 from flask import current_app, session
 
 from threading import Lock
-from utils import get_value
+from .utils import get_value
 
 log_lock = Lock()
 

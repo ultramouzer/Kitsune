@@ -1,5 +1,5 @@
 from ..internals.cache.redis import delete_keys
-from ..intenrals.database.database import get_cursor
+from ..internals.database.database import get_cursor
 
 def delete_post_cache_keys(service, artist_id, post_id):
     keys = [

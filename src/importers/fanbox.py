@@ -129,7 +129,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
             log(f'[{import_id}]: Finished processing page ({url}). Importing {next_url}', to_client = True)
             import_posts(log_id, key, next_url)
         else:
-            log(current_app.logger.debug(f'[{import_id}]: Finished scanning for posts', to_client = True)
+            log(f'[{import_id}]: Finished scanning for posts', to_client = True)
             index_artists()
 
 if __name__ == '__main__':

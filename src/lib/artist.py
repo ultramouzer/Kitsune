@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup
-from proxy import get_proxy
+from .proxy import get_proxy
 import cloudscraper
 import requests
 

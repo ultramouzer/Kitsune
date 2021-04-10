@@ -8,7 +8,7 @@ import functools
 import urllib
 from os import rename, makedirs
 from os.path import join, getsize, exists, splitext, basename
-from proxy import get_proxy
+from .proxy import get_proxy
 
 non_url_safe = ['"', '#', '$', '%', '&', '+',
     ',', '/', ':', ';', '=', '?',
