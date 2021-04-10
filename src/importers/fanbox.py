@@ -16,8 +16,8 @@ from flask import current_app
 from ...PixivUtil2.PixivModelFanbox import FanboxArtist, FanboxPost
 
 from ..internals.database.database import get_conn
-from ..lib.artist import delete_artist_cache_keys, delete_all_artist_keys, index_artists, is_artist_dnp
-from ..lib.post import delete_post_cache_keys, delete_all_post_cache_keys, remove_post_if_flagged_for_reimport, post_exists
+from ..lib.artist import index_artists, is_artist_dnp
+from ..lib.post import remove_post_if_flagged_for_reimport, post_exists
 from ..lib.proxy import get_proxy
 from ..lib.download import download_file, DownloaderException
 from ..internals.utils.utils import get_import_id
@@ -54,7 +54,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                 file_directory = f"files/fanbox/{user_id}/{post_id}"
                 attachments_directory = f"attachments/fanbox/{user_id}/{post_id}"
 
-                if is_artist_dnp(user_id):
+                if is_artist_dnp('fanbox', user_id):
                     current_app.logger.debug(f"[{import_id}]: Skipping post {post_id} from user {user_id} is in do not post list")
                     continue
 
@@ -119,8 +119,6 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                 cursor.execute(query, list(post_model.values()))
                 conn.commit()
 
-                delete_post_cache_keys('fanbox', user_id, post_id)
-
                 current_app.logger.debug(f'[{import_id}]: Finished importing {post_id} for user {user_id}')
             except Exception as e:
                 current_app.logger.exception(f'[{import_id}]: Error importing post {post_id} from user {user_id}')
@@ -134,13 +132,6 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
         else:
             current_app.logger.debug(current_app.logger.debug(f'[{import_id}]: Finished scanning for posts')
             index_artists()
-
-            for artist_id in artists_with_posts_imported:
-                artist.flush_cache_keys('fanbox', artist_id)
-            artist.flush_keys_after_import()
-            for (artist_id, post_id) in posts_imported:
-                post.flush_cache_keys('fanbox', artist_id, post_id)
-            post.flush_keys_after_import()
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

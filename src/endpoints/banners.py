@@ -1,5 +1,7 @@
 from flask import Blueprint, redirect, current_app
 
+import config
+
 from ..internals.download import download_file
 
 banners = Blueprint('banners', __name__)

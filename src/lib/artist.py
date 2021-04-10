@@ -3,6 +3,8 @@ from proxy import get_proxy
 import cloudscraper
 import requests
 
+from flask import current_app
+
 from ..internals.cache.redis import delete_keys, delete_keys_pattern
 from ..internals.database.database import get_cursor
 
@@ -31,9 +33,9 @@ def delete_all_artist_keys():
     
     delete_keys(keys)
 
-def is_artist_dnp(artist_id):
+def is_artist_dnp(serviuce, artist_id):
     cursor = get_cursor
-    cursor.execute("SELECT * FROM dnp WHERE id = %s AND service = 'fanbox'", (user_id,))
+    cursor.execute("SELECT * FROM dnp WHERE id = %s AND service = %s", (user_id, service,))
     return len(cursor.fetchall()) > 0
 
 def index_artists():
@@ -92,7 +94,7 @@ def index_artists():
             )
             cursor.execute(query, list(model.values()))
             conn.commit()
-        except Exception as e:
-            print(f"Error while indexing user {post['user']}: {e}")
+        except Exception:
+            current_app.logger.exception(f"Error while indexing user {post['user']}")
 
     return_conn(conn)

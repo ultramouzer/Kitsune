@@ -15,11 +15,12 @@ def delete_all_post_cache_keys():
 
 def post_exists(service, artist_id, post_id):
     cursor = get_cursor()
-    cursor.execute("SELECT * FROM posts WHERE id = %s AND service = 'fanbox'", (post_id,))
+    cursor.execute("SELECT * FROM posts WHERE id = %s AND \"user\" = %s AND service = '%s'", (post_id, artist_id, service,))
     existing_posts = cursor.fetchall()
 
 def remove_post_if_flagged_for_reimport(service, user, post):
-    cursor = get_cursor()
+    conn = get_conn()
+    cursor = conn.cursor()
 
     cursor.execute('SELECT * FROM booru_flags WHERE service = %s AND "user" = %s AND id = %s', (service, user, post))
     existing_flags = cursor.fetchall()
@@ -29,6 +30,7 @@ def remove_post_if_flagged_for_reimport(service, user, post):
     cursor.execute('DELETE FROM booru_flags WHERE service = %s AND "user" = %s AND id = %s', (service, user, post))
     cursor.execute('DELETE FROM posts WHERE service = %s AND "user" = %s AND id = %s', (service, user, post))
     conn.commit()
+    return_conn(conn)
     rmtree(join(
         config.download_path,
         'attachments',

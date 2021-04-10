@@ -39,4 +39,4 @@ def parse_int(string, default = 0):
 
 def get_import_id(data):
     salt = str(random.randrange(0, 1000))
-    return take(7, hashlib.sha256((data + salt).encode('utf-8')).hexdigest())
+    return take(8, hashlib.sha256((data + salt).encode('utf-8')).hexdigest())

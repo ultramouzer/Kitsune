@@ -16,8 +16,8 @@ def init():
             port = getenv('PGPORT') or 5432,
             cursor_factory = RealDictCursor
         )
-    except Exception as error:
-        current_app.logger.error(f'Failed to connect to the database: {error}')
+    except Exception:
+        current_app.logger.exception(f'Failed to connect to the database')
     return pool
 
 def get_pool():

@@ -13,9 +13,11 @@ from os.path import join, splitext
 from urllib.parse import urlparse
 from gallery_dl import text
 
-from ..internals.database.database import get_conn, return_conn
-from ..lib.artist import delete_artist_cache_keys, delete_all_artist_keys, index_artists
-from ..lib.post import delete_post_cache_keys, delete_all_post_cache_keys, remove_post_if_flagged_for_reimport
+from flask import current_app
+
+from ..internals.database.database import get_conn
+from ..lib.artist import index_artists, is_artist_dnp
+from ..lib.post import remove_post_if_flagged_for_reimport, post_exists
 from ..lib.download import download_file, DownloaderException
 from ..lib.proxy import get_proxy
 
@@ -78,7 +80,7 @@ def import_posts(log_id, key, url = initial_api):
         scraper_data = scraper.json()
         scraper.raise_for_status()
     except requests.HTTPError:
-        print(f'Error: Status code {scraper_data.status_code} when contacting Patreon API.')
+        current_app.logger.exception(f"[{import_id}]: Status code {scraper_data.status_code} when contacting Patreon API.")
         return
     
     user_id = None
@@ -87,25 +89,20 @@ def import_posts(log_id, key, url = initial_api):
         try:
             user_id = post['relationships']['user']['data']['id']
             post_id = post['id']
-            file_directory = f"files/{post['relationships']['user']['data']['id']}/{post_id}"
-            attachments_directory = f"attachments/{post['relationships']['user']['data']['id']}/{post_id}"
+            file_directory = f"files/{user_id}/{post_id}"
+            attachments_directory = f"attachments/{user_id}/{post_id}"
 
-            cursor1 = conn.cursor()
-            cursor1.execute("SELECT * FROM dnp WHERE id = %s AND service = 'patreon'", (post['relationships']['user']['data']['id'],))
-            bans = cursor1.fetchall()
-            if len(bans) > 0:
-                print(f"Skipping ID {post_id}: user {post['relationships']['user']['data']['id']} is banned")
-                return
-            
-            remove_post_if_flagged_for_reimport('patreon', user_id, post_id)
-
-            cursor2 = conn.cursor()
-            cursor2.execute("SELECT * FROM posts WHERE id = %s AND service = 'patreon'", (post_id,))
-            existing_post = cursor2.fetchall()
-            if len(existing_post) > 0:
+            if is_artist_dnp('patreon', user_id):
+                current_app.logger.debug(f"[{import_id}]: Skipping post {post_id} from user {user_id} is in do not post list")
                 continue
 
-            print(f"Starting import: {post_id}")
+            remove_post_if_flagged_for_reimport('patreon', user_id, post_id)
+
+            if post_exists('patreon', user_id, post_id):
+                current_app.logger.debug(f'[{import_id}]: Skipping post {post_id} from user {user_id} because already exists')
+                continue
+
+            current_app.logger.debug(f"[{import_id}]: Starting import: {post_id}")
 
             post_model = {
                 'id': post_id,
@@ -202,32 +199,26 @@ def import_posts(log_id, key, url = initial_api):
                 fields = ','.join(columns),
                 values = ','.join(data)
             )
-            cursor3 = conn.cursor()
-            cursor3.execute(query, list(post_model.values()))
+            cursor = conn.cursor()
+            cursor.execute(query, list(post_model.values()))
             conn.commit()
 
-            post.delete_post_cache_keys('patreon', user_id, post_id)
-
-            print(f"Finished importing {post_id}!")
+            current_app.logger.debug(f"[{import_id}]: Finished importing {post_id}!")
         except Exception as e:
-            print(f"Error while importing {post_id}: {e}")
+            current_app.logger.debug(f"[{import_id}]: Error while importing {post_id}: {e}")
             conn.rollback()
             continue
 
     return_conn(conn)
-    if scraper_data['links'].get('next'):
+
+    next_url = scraper_data['links'].get('next')
+    if next_url:
+        current_app.logger.debug(f'[{import_id}]: Finished processing page ({url}). Importing {next_url}')
         import_posts(log_id, key, 'https://' + scraper_data['links']['next'])
     else:
-        print('Finished scanning for posts.')
-        print('No posts detected? You either entered your session key incorrectly, or are not subscribed to any artists.')
+        current_app.logger.debug(f"[{import_id}]: Finished scanning for posts.")
+        current_app.logger.debug(f"[{import_id}]: No posts detected. You either entered your session key incorrectly, or are not subscribed to any artists.")
         index_artists()
-
-        if user_id is not None:
-            artist.delete_artist_cache_keys('patreon', user_id)
-        artist.delete_all_artist_keys()
-        post.delete_all_post_cache_keys()
-
-    
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

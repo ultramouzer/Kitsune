@@ -11,9 +11,11 @@ from gallery_dl.extractor.message import Message
 from io import StringIO
 from html.parser import HTMLParser
 
-from ..internals.database.database import get_conn, return_conn
-from ..lib.artist import delete_artist_cache_keys, delete_all_artist_keys, index_artists
-from ..lib.post import delete_post_cache_keys, delete_all_post_cache_keys, remove_post_if_flagged_for_reimport
+from flask import current_app
+
+from ..internals.database.database import get_conn
+from ..lib.artist import index_artists, is_artist_dnp
+from ..lib.post import remove_post_if_flagged_for_reimport, post_exists
 from ..lib.download import download_file, DownloaderException
 from ..lib.proxy import get_proxy
 
@@ -55,25 +57,20 @@ def import_posts(log_id, key):
 
                 user_id = post['author_name']
                 post_id = str(post['post_id'])
-                file_directory = f"files/subscribestar/{user_id}/{post['post_id']}"
-                attachments_directory = f"attachments/subscribestar/{user_id}/{post['post_id']}"
+                file_directory = f"files/subscribestar/{user_id}/{post_id}"
+                attachments_directory = f"attachments/subscribestar/{user_id}/{post_id}"
                 
-                cursor1 = conn.cursor()
-                cursor1.execute("SELECT * FROM dnp WHERE id = %s AND service = 'subscribestar'", (user_id,))
-                bans = cursor1.fetchall()
-                if len(bans) > 0:
-                    print(f"Skipping ID {post['post_id']}: user {user_id} is banned")
+                if is_artist_dnp('subscribestar', user_id):
+                    current_app.logger.debug(f"[{import_id}]: Skipping post {post_id} from user {user_id} is in do not post list")
                     continue
-                
+
                 remove_post_if_flagged_for_reimport('subscribestar', user_id, post_id)
 
-                cursor2 = conn.cursor()
-                cursor2.execute("SELECT * FROM posts WHERE id = %s AND service = 'subscribestar'", (post_id,))
-                existing_posts = cursor2.fetchall()
-                if len(existing_posts) > 0:
+                if post_exists('subscribestar', user_id, post_id):
+                    current_app.logger.debug(f'[{import_id}]: Skipping post {post_id} from user {user_id} because already exists')
                     continue
 
-                print(f"Starting import: {post['post_id']}!")
+                current_app.logger.debug(f"[{import_id}]: Starting import: {post_id}")
                 
                 stripped_content = strip_tags(post['content'])
                 post_model = {
@@ -91,7 +88,7 @@ def import_posts(log_id, key):
                     'attachments': []
                 }
 
-                for attachment in list(filter(lambda msg: post['post_id'] == msg[-1]['post_id'] and msg[0] == Message.Url, j.data)):
+                for attachment in list(filter(lambda msg: post_id == msg[-1]['post_id'] and msg[0] == Message.Url, j.data)):
                     if (len(post_model['file'].keys()) == 0):
                         filename, _ = download_file(
                             join(config.download_path, file_directory),
@@ -127,22 +124,15 @@ def import_posts(log_id, key):
                 cursor3.execute(query, list(post_model.values()))
                 conn.commit()
 
-                post.delete_post_cache_keys('subscribestar', user_id, post_id)
-
-                print(f"Finished importing {post['post_id']}!")
-        except Exception as e:
-            print(f"Error while importing: {e}")
+                current_app.logger.debug(f"[{import_id}]: Finished importing {post_id} from user {user_id}")
+        except Exception:
+            current_app.logger.exception(f"[{import_id}]: Error while importing {post_id} from user {user_id}")
             conn.rollback()
             continue
     
     return_conn(conn)
-    print('Finished scanning for posts.')
+    current_app.logger.debug(f"[{import_id}]: Finished scanning for posts.")
     index_artists()
-
-    if user_id is not None:
-        artist.delete_artist_cache_keys('subscribestar', user_id)
-    artist.delete_all_artist_keys()
-    post.delete_all_post_cache_keys()
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

@@ -1,6 +1,11 @@
 from flask import Blueprint, request
 from ..internals.utils.utils import get_import_id
 
+from ..importers import patreon
+from ..importers import fanbox
+from ..importers import subscribestar
+from ..importers import gumroad
+
 api = Blueprint('api', __name__)
 
 @api.route('/api/import', methods=['POST'])
