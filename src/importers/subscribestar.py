@@ -16,8 +16,8 @@ from flask import current_app
 from ..internals.database.database import get_conn
 from ..lib.artist import index_artists, is_artist_dnp
 from ..lib.post import remove_post_if_flagged_for_reimport, post_exists
-from ..lib.download import download_file, DownloaderException
-from ..lib.proxy import get_proxy
+from ..internals.utils.download import download_file, DownloaderException
+from ..internals.utils.proxy import get_proxy
 
 class MLStripper(HTMLParser):
     def __init__(self):

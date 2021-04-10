@@ -17,8 +17,9 @@ from flask import current_app
 from ..internals.database.database import get_conn
 from ..lib.artist import index_artists, is_artist_dnp
 from ..lib.post import remove_post_if_flagged_for_reimport, post_exists
-from ..lib.download import download_file, DownloaderException
-from ..lib.proxy import get_proxy
+from ..internals.utils.download import download_file, DownloaderException
+from ..internals.utils.proxy import get_proxy
+from ..internals.utils.logger import log
 
 def import_posts(log_id, key, offset = 1):
     makedirs(join(config.download_path, 'logs'), exist_ok=True)
@@ -33,11 +34,11 @@ def import_posts(log_id, key, offset = 1):
         scraper_data = scraper.json()
         scraper.raise_for_status()
     except requests.HTTPError:
-        current_app.logger.exception(f'Error: Status code {scraper_data.status_code} when contacting Gumroad API.')
+        current_app.logger.exception(f'[{import_id}]: Status code {scraper_data.status_code} when contacting Gumroad API.')
         return
 
     if (scraper_data['total'] > 100000):
-        current_app.logger.(f'Error: Can\'t log in; is your session key correct?')
+        log(f"[{import_id}]: Can't log in; is your session key correct?", to_client = True)
 
     soup = BeautifulSoup(scraper_data['products_html'], 'html.parser')
     products = soup.find_all(class_='product-card')

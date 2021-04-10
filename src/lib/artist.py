@@ -1,12 +1,12 @@
 from bs4 import BeautifulSoup
-from .proxy import get_proxy
 import cloudscraper
 import requests
 
 from flask import current_app
 
+from ..internals.utils.proxy import get_proxy
 from ..internals.cache.redis import delete_keys, delete_keys_pattern
-from ..internals.database.database import get_cursor
+from ..internals.database.database import get_cursor, get_conn
 
 def delete_artist_cache_keys(service, artist_id):
     artist_id = str(artist_id)
