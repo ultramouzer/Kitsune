@@ -8,8 +8,6 @@ import requests
 import datetime
 import config
 import json
-import logging
-import uuid
 
 from flask import current_app
 
@@ -21,6 +19,7 @@ from ..lib.post import remove_post_if_flagged_for_reimport, post_exists
 from ..lib.proxy import get_proxy
 from ..lib.download import download_file, DownloaderException
 from ..internals.utils.utils import get_import_id
+from ..internals.utils.logger import log
 
 def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
     makedirs(join(config.download_path, 'logs'), exist_ok=True)
@@ -34,7 +33,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
         )
         scraper_data = scraper.json()
     except requests.HTTPError:
-        current_app.logger.exception(f'[{import_id}]: HTTP error when contacting Fanbox API ({url}). Stopping import.')
+        log(f'[{import_id}]: HTTP error when contacting Fanbox API ({url}). Stopping import.', 'exception', True)
         return
 
     conn = get_conn()
@@ -48,23 +47,23 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
 
             parsed_post = FanboxPost(post_id, None, post)
             if parsed_post.is_restricted:
-                current_app.logger.debug(f'[{import_id}]: Skipping post {post_id} from user {user_id} because restricted')
+                log(f'[{import_id}]: Skipping post {post_id} from user {user_id} because restricted')
                 continue
             try:
                 file_directory = f"files/fanbox/{user_id}/{post_id}"
                 attachments_directory = f"attachments/fanbox/{user_id}/{post_id}"
 
                 if is_artist_dnp('fanbox', user_id):
-                    current_app.logger.debug(f"[{import_id}]: Skipping post {post_id} from user {user_id} is in do not post list")
+                    log(f"[{import_id}]: Skipping post {post_id} from user {user_id} is in do not post list")
                     continue
 
                 remove_post_if_flagged_for_reimport('fanbox', user_id, post_id)
 
                 if post_exists('fanbox', user_id, post_id):
-                    current_app.logger.debug(f'[{import_id}]: Skipping post {post_id} from user {user_id} because already exists')
+                    log(f'[{import_id}]: Skipping post {post_id} from user {user_id} because already exists', to_client = True)
                     continue
 
-                current_app.logger.debug(f"[{import_id}]: Starting import: {post_id}")
+                log(f"[{import_id}]: Starting import: {post_id} from user {user_id}", to_client = True)
 
                 post_model = {
                     'id': post_id,
@@ -119,18 +118,18 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                 cursor.execute(query, list(post_model.values()))
                 conn.commit()
 
-                current_app.logger.debug(f'[{import_id}]: Finished importing {post_id} for user {user_id}')
+                log(f'[{import_id}]: Finished importing {post_id} for user {user_id}')
             except Exception as e:
-                current_app.logger.exception(f'[{import_id}]: Error importing post {post_id} from user {user_id}')
+                log(f'[{import_id}]: Error importing post {post_id} from user {user_id}', 'exception', True)
                 conn.rollback()
                 continue
         
         next_url = scraper_data['body'].get('nextUrl')
         if next_url:
-            current_app.logger.debug(f'[{import_id}]: Finished processing page ({url}). Importing {next_url}')
+            log(f'[{import_id}]: Finished processing page ({url}). Importing {next_url}', to_client = True)
             import_posts(log_id, key, next_url)
         else:
-            current_app.logger.debug(current_app.logger.debug(f'[{import_id}]: Finished scanning for posts')
+            log(current_app.logger.debug(f'[{import_id}]: Finished scanning for posts', to_client = True)
             index_artists()
 
 if __name__ == '__main__':

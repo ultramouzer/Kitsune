@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import request
+from flask import request, current_app, session
 import hashlib
 import random
 

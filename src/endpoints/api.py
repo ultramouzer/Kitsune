@@ -1,5 +1,6 @@
 from flask import Blueprint, request
 from ..internals.utils.utils import get_import_id
+from ..internals.utils.logger import get_logs
 
 from ..importers import patreon
 from ..importers import fanbox
@@ -28,3 +29,11 @@ def import_api():
         th = threading.Thread(target=gumroad.import_posts, args=(import_id, key))
         th.start()
     return import_id, 200
+
+@api.route('/api/logs', methods=['GET'])
+def get_logs():
+    logs = get_logs()
+    if len(logs) > 0:
+        return json.dumps(logs), 200
+    else:
+        return "", 204
