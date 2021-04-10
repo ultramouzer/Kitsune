@@ -20,6 +20,7 @@ from ..lib.artist import index_artists, is_artist_dnp
 from ..lib.post import remove_post_if_flagged_for_reimport, post_exists
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
+from ..internals.utils.logger import log
 
 initial_api = 'https://www.patreon.com/api/stream' + '?include=' + ','.join([
     'user',
@@ -80,7 +81,7 @@ def import_posts(log_id, key, url = initial_api):
         scraper_data = scraper.json()
         scraper.raise_for_status()
     except requests.HTTPError:
-        current_app.logger.exception(f"[{import_id}]: Status code {scraper_data.status_code} when contacting Patreon API.")
+        log(import_id, f"Status code {scraper_data.status_code} when contacting Patreon API.", 'exception')
         return
     
     user_id = None
@@ -93,16 +94,16 @@ def import_posts(log_id, key, url = initial_api):
             attachments_directory = f"attachments/{user_id}/{post_id}"
 
             if is_artist_dnp('patreon', user_id):
-                current_app.logger.debug(f"[{import_id}]: Skipping post {post_id} from user {user_id} is in do not post list")
+                log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list", to_client = True)
                 continue
 
             remove_post_if_flagged_for_reimport('patreon', user_id, post_id)
 
             if post_exists('patreon', user_id, post_id):
-                current_app.logger.debug(f'[{import_id}]: Skipping post {post_id} from user {user_id} because already exists')
+                log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
                 continue
 
-            current_app.logger.debug(f"[{import_id}]: Starting import: {post_id}")
+            log(import_id, f"Starting import: {post_id}")
 
             post_model = {
                 'id': post_id,
@@ -203,9 +204,9 @@ def import_posts(log_id, key, url = initial_api):
             cursor.execute(query, list(post_model.values()))
             conn.commit()
 
-            current_app.logger.debug(f"[{import_id}]: Finished importing {post_id}!")
+            log(import_id, f"Finished importing {post_id} from user {user_id}", to_client = True)
         except Exception as e:
-            current_app.logger.debug(f"[{import_id}]: Error while importing {post_id}: {e}")
+            log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception', True)
             conn.rollback()
             continue
 
@@ -213,11 +214,11 @@ def import_posts(log_id, key, url = initial_api):
 
     next_url = scraper_data['links'].get('next')
     if next_url:
-        current_app.logger.debug(f'[{import_id}]: Finished processing page ({url}). Importing {next_url}')
+        log(import_id, f'Finished processing page ({url}). Importing {next_url}')
         import_posts(log_id, key, 'https://' + scraper_data['links']['next'])
     else:
-        current_app.logger.debug(f"[{import_id}]: Finished scanning for posts.")
-        current_app.logger.debug(f"[{import_id}]: No posts detected. You either entered your session key incorrectly, or are not subscribed to any artists.")
+        log(import_id, f"Finished scanning for posts.")
+        log(import_id, f"No posts detected. You either entered your session key incorrectly, or are not subscribed to any artists.")
         index_artists()
 
 if __name__ == '__main__':

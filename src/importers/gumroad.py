@@ -34,11 +34,11 @@ def import_posts(log_id, key, offset = 1):
         scraper_data = scraper.json()
         scraper.raise_for_status()
     except requests.HTTPError:
-        current_app.logger.exception(f'[{import_id}]: Status code {scraper_data.status_code} when contacting Gumroad API.')
+        current_app.logger.exception(import_id, f'Status code {scraper_data.status_code} when contacting Gumroad API.')
         return
 
     if (scraper_data['total'] > 100000):
-        log(f"[{import_id}]: Can't log in; is your session key correct?", to_client = True)
+        log(import_id, f"Can't log in; is your session key correct?", to_client = True)
 
     soup = BeautifulSoup(scraper_data['products_html'], 'html.parser')
     products = soup.find_all(class_='product-card')
@@ -57,13 +57,13 @@ def import_posts(log_id, key, offset = 1):
         attachments_directory = f"attachments/gumroad/{user_id}/{post_id}"
 
         if is_artist_dnp('gumroad', user_id):
-            current_app.logger.debug(f"[{import_id}]: Skipping post {post_id} from user {user_id} is in do not post list")
+            log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list", to_client = True)
             continue
 
         remove_post_if_flagged_for_reimport('gumroad', user_id, post_id)
 
         if post_exists('gumroad', user_id, post_id):
-            current_app.logger.debug(f'[{import_id}]: Skipping post {post_id} from user {user_id} because already exists')
+            log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
             continue
 
         print(f"Starting import: {post_id}")
@@ -147,14 +147,14 @@ def import_posts(log_id, key, offset = 1):
         cursor.execute(query, list(post_model.values()))
         conn.commit()
 
-        current_app.logger.debug(f"[{import_id}]: Finished importing post {post_id} from user {user_id}!")
+        log(import_id, f"Finished importing post {post_id} from user {user_id}", to_client = True)
 
     if len(products):
         next_offset = offset + scraper_data['result_count']
-        current_app.logger.debug(f'[{import_id}]: Finished processing offset {offset}. Importing offset {next_offset}')
+        log(import_id, f'Finished processing offset {offset}. Importing offset {next_offset}', to_client = True)
         import_posts(log_id, key, offset=next_offset)
     else:
-        current_app.logger.debug(f"[{import_id}]: Finished scanning for posts.")
+        log(import_id, f"Finished scanning for posts.", to_client = True)
         index_artists()
 
     return_conn(conn)

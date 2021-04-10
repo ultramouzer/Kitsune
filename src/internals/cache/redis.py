@@ -1,11 +1,12 @@
 import redis
 from os import getenv
+import config
 
 pool = None
 
 def init():
     global pool
-    pool = redis.ConnectionPool(host=getenv('REDIS_HOST'), port=getenv('REDIS_PORT'))
+    pool = redis.ConnectionPool(host=config.redis_host, port=config.redis_port)
     return pool
 
 def get_redis():
@@ -20,4 +21,3 @@ def delete_keys_pattern(pattern):
     redis = get_conn()
     keys = redis.keys(pattern)
     redis.delete(*keys)
-

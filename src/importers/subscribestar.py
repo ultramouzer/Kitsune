@@ -18,6 +18,7 @@ from ..lib.artist import index_artists, is_artist_dnp
 from ..lib.post import remove_post_if_flagged_for_reimport, post_exists
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
+from ..internals.utils.logger import log
 
 class MLStripper(HTMLParser):
     def __init__(self):
@@ -61,16 +62,16 @@ def import_posts(log_id, key):
                 attachments_directory = f"attachments/subscribestar/{user_id}/{post_id}"
                 
                 if is_artist_dnp('subscribestar', user_id):
-                    current_app.logger.debug(f"[{import_id}]: Skipping post {post_id} from user {user_id} is in do not post list")
+                    log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list", to_client = True)
                     continue
 
                 remove_post_if_flagged_for_reimport('subscribestar', user_id, post_id)
 
                 if post_exists('subscribestar', user_id, post_id):
-                    current_app.logger.debug(f'[{import_id}]: Skipping post {post_id} from user {user_id} because already exists')
+                    log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
                     continue
 
-                current_app.logger.debug(f"[{import_id}]: Starting import: {post_id}")
+                log(import_id, f"Starting import: {post_id}")
                 
                 stripped_content = strip_tags(post['content'])
                 post_model = {
@@ -124,14 +125,14 @@ def import_posts(log_id, key):
                 cursor3.execute(query, list(post_model.values()))
                 conn.commit()
 
-                current_app.logger.debug(f"[{import_id}]: Finished importing {post_id} from user {user_id}")
+                log(import_id, f"Finished importing {post_id} from user {user_id}", to_client = True)
         except Exception:
-            current_app.logger.exception(f"[{import_id}]: Error while importing {post_id} from user {user_id}")
+            log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception', True)
             conn.rollback()
             continue
     
     return_conn(conn)
-    current_app.logger.debug(f"[{import_id}]: Finished scanning for posts.")
+    log(import_id, f"Finished scanning for posts.", to_client = True)
     index_artists()
 
 if __name__ == '__main__':

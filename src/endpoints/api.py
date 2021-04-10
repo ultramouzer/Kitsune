@@ -1,6 +1,9 @@
 from flask import Blueprint, request
+import threading
+import json
+
 from ..internals.utils.utils import get_import_id
-from ..internals.utils.logger import get_logs
+from ..internals.utils import logger
 
 from ..importers import patreon
 from ..importers import fanbox
@@ -30,10 +33,7 @@ def import_api():
         th.start()
     return import_id, 200
 
-@api.route('/api/logs', methods=['GET'])
-def get_logs():
-    logs = get_logs()
-    if len(logs) > 0:
-        return json.dumps(logs), 200
-    else:
-        return "", 204
+@api.route('/api/logs/<log_id>', methods=['GET'])
+def get_logs(log_id):
+    logs = logger.get_logs(log_id)
+    return json.dumps(logs), 200
