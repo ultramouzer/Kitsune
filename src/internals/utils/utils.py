@@ -4,9 +4,10 @@ import hashlib
 import random
 
 def get_value(d, key, default = None):
-    if key in d:
+    try:
         return d[key]
-    return default
+    except Exception:
+        return default
 
 def sort_dict_list_by(l, key, reverse = False):
     return sorted(l, key=lambda v: v[key], reverse=reverse)

@@ -20,6 +20,7 @@ from ..lib.post import remove_post_if_flagged_for_reimport, post_exists
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.logger import log
+from ..internals.utils.utils import get_value
 
 def import_posts(import_id, key, offset = 1):
     try:
@@ -46,9 +47,17 @@ def import_posts(import_id, key, offset = 1):
         post_id = product['data-permalink']
         purchase_id = product.find(class_='js-product')['data-purchase-id']
         title = product.select_one('.description-container h1 strong').string
+
         user_id_element = product.find(class_='preview-container')['data-asset-previews']
         user_id_nums = re.findall(r"\d+", user_id_element)
-        user_id = list(filter(lambda el: len(el) == 13, user_id_nums))[0]
+        user_id = get_value(list(filter(lambda el: len(el) == 13, user_id_nums)), 0)
+        if user_id is None:
+            user_name_element = get_value(product.find_all('a', {'class':'js-creator-profile-link'}), 0)
+            if user_name_element is None:
+                log(import_id, f'Skipping post {post_id}. Could not find user information.')
+                continue
+            else:
+                user_id = user_name_element.text.strip()
 
         file_directory = f"files/gumroad/{user_id}/{post_id}"
         attachments_directory = f"attachments/gumroad/{user_id}/{post_id}"
@@ -63,7 +72,7 @@ def import_posts(import_id, key, offset = 1):
             log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
             continue
 
-        print(f"Starting import: {post_id}")
+        log(import_id, f"Starting import: {post_id} from user {user_id}")
 
         post_model = {
             'id': post_id,
@@ -149,7 +158,7 @@ def import_posts(import_id, key, offset = 1):
     if len(products):
         next_offset = offset + scraper_data['result_count']
         log(import_id, f'Finished processing offset {offset}. Processing offset {next_offset}')
-        import_posts(log_id, key, offset=next_offset)
+        import_posts(import_id, key, offset=next_offset)
     else:
         log(import_id, f"Finished scanning for posts.")
         index_artists()
