@@ -22,7 +22,7 @@ from ..internals.utils.proxy import get_proxy
 from ..internals.utils.logger import log
 
 def import_posts(import_id, key, offset = 1):
-    log(import_id, 'Starting import', to_client = True)
+    log(import_id, 'Starting import')
 
     try:
         scraper = cloudscraper.create_scraper().get(
@@ -33,11 +33,11 @@ def import_posts(import_id, key, offset = 1):
         scraper_data = scraper.json()
         scraper.raise_for_status()
     except requests.HTTPError:
-        current_app.logger.exception(import_id, f'Status code {scraper_data.status_code} when contacting Gumroad API.')
+        log(import_id, f'Status code {scraper_data.status_code} when contacting Gumroad API.', 'exception')
         return
 
     if (scraper_data['total'] > 100000):
-        log(import_id, f"Can't log in; is your session key correct?", to_client = True)
+        log(import_id, f"Can't log in; is your session key correct?")
 
     soup = BeautifulSoup(scraper_data['products_html'], 'html.parser')
     products = soup.find_all(class_='product-card')
@@ -56,13 +56,13 @@ def import_posts(import_id, key, offset = 1):
         attachments_directory = f"attachments/gumroad/{user_id}/{post_id}"
 
         if is_artist_dnp('gumroad', user_id):
-            log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list", to_client = True)
+            log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
             continue
 
         remove_post_if_flagged_for_reimport('gumroad', user_id, post_id)
 
         if post_exists('gumroad', user_id, post_id):
-            log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
+            log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
             continue
 
         print(f"Starting import: {post_id}")
@@ -146,17 +146,15 @@ def import_posts(import_id, key, offset = 1):
         cursor.execute(query, list(post_model.values()))
         conn.commit()
 
-        log(import_id, f"Finished importing post {post_id} from user {user_id}", to_client = True)
+        log(import_id, f"Finished importing post {post_id} from user {user_id}", to_client = False)
 
     if len(products):
         next_offset = offset + scraper_data['result_count']
-        log(import_id, f'Finished processing offset {offset}. Importing offset {next_offset}', to_client = True)
+        log(import_id, f'Finished processing offset {offset}. Importing offset {next_offset}')
         import_posts(log_id, key, offset=next_offset)
     else:
-        log(import_id, f"Finished scanning for posts.", to_client = True)
+        log(import_id, f"Finished scanning for posts.")
         index_artists()
-
-    return_conn(conn)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

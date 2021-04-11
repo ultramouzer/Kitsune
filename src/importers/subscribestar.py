@@ -38,7 +38,7 @@ def strip_tags(html):
     return s.get_data()
 
 def import_posts(import_id, key):
-    log(import_id, 'Starting import', to_client = True)
+    log(import_id, 'Starting import')
 
     dlconfig.set(('output'), "mode", "null")
     dlconfig.set(('extractor', 'subscribestar'), "cookies", {
@@ -62,13 +62,13 @@ def import_posts(import_id, key):
                 attachments_directory = f"attachments/subscribestar/{user_id}/{post_id}"
                 
                 if is_artist_dnp('subscribestar', user_id):
-                    log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list", to_client = True)
+                    log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
                     continue
 
                 remove_post_if_flagged_for_reimport('subscribestar', user_id, post_id)
 
                 if post_exists('subscribestar', user_id, post_id):
-                    log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
+                    log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
                     continue
 
                 log(import_id, f"Starting import: {post_id}")
@@ -125,14 +125,13 @@ def import_posts(import_id, key):
                 cursor3.execute(query, list(post_model.values()))
                 conn.commit()
 
-                log(import_id, f"Finished importing {post_id} from user {user_id}", to_client = True)
+                log(import_id, f"Finished importing {post_id} from user {user_id}", to_client = False)
         except Exception:
-            log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception', True)
+            log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception')
             conn.rollback()
             continue
     
-    return_conn(conn)
-    log(import_id, f"Finished scanning for posts.", to_client = True)
+    log(import_id, f"Finished scanning for posts.")
     index_artists()
 
 if __name__ == '__main__':

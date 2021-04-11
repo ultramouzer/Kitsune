@@ -22,7 +22,7 @@ from ..internals.utils.utils import get_import_id
 from ..internals.utils.logger import log
 
 def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
-    log(import_id, 'Starting import', to_client = True)
+    log(import_id, 'Starting import')
     try:
         scraper = requests.get(
             url,
@@ -32,7 +32,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
         )
         scraper_data = scraper.json()
     except requests.HTTPError:
-        log(import_id, f'HTTP error when contacting Fanbox API ({url}). Stopping import.', 'exception', True)
+        log(import_id, f'HTTP error when contacting Fanbox API ({url}). Stopping import.', 'exception')
         return
 
     conn = get_conn()
@@ -59,10 +59,10 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                 remove_post_if_flagged_for_reimport('fanbox', user_id, post_id)
 
                 if post_exists('fanbox', user_id, post_id):
-                    log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
+                    log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
                     continue
 
-                log(import_id, f"Starting import: {post_id} from user {user_id}", to_client = True)
+                log(import_id, f"Starting import: {post_id} from user {user_id}")
 
                 post_model = {
                     'id': post_id,
@@ -117,18 +117,18 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                 cursor.execute(query, list(post_model.values()))
                 conn.commit()
 
-                log(import_id, f'Finished importing {post_id} for user {user_id}')
+                log(import_id, f'Finished importing {post_id} for user {user_id}', to_client = False)
             except Exception as e:
-                log(import_id, f'Error importing post {post_id} from user {user_id}', 'exception', True)
+                log(import_id, f'Error importing post {post_id} from user {user_id}', 'exception')
                 conn.rollback()
                 continue
         
         next_url = scraper_data['body'].get('nextUrl')
         if next_url:
-            log(import_id, f'Finished processing page ({url}). Importing {next_url}', to_client = True)
+            log(import_id, f'Finished processing page ({url}). Importing {next_url}')
             import_posts(log_id, key, next_url)
         else:
-            log(import_id, f'Finished scanning for posts', to_client = True)
+            log(import_id, f'Finished scanning for posts')
             index_artists()
 
 if __name__ == '__main__':

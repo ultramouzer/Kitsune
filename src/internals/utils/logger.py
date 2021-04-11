@@ -6,7 +6,7 @@ from ..cache.redis import get_redis
 
 log_lock = Lock()
 
-def log(log_id, msg, level = 'debug', to_client = False):
+def log(log_id, msg, level = 'debug', to_client = True):
     redis = get_redis()
     log_lock.acquire()
     try:
@@ -14,7 +14,8 @@ def log(log_id, msg, level = 'debug', to_client = False):
         log_func = getattr(current_app.logger, level)
         log_func(msg)
 
-        redis.rpush(f'importer_logs:{log_id}', msg)
+        if to_client:
+            redis.rpush(f'importer_logs:{log_id}', msg)
     finally:
         log_lock.release()
 

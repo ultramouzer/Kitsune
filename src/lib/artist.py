@@ -1,12 +1,11 @@
 from bs4 import BeautifulSoup
 import cloudscraper
 import requests
-
-from flask import current_app
+import logging
 
 from ..internals.utils.proxy import get_proxy
 from ..internals.cache.redis import delete_keys, delete_keys_pattern
-from ..internals.database.database import get_cursor, get_conn, return_conn
+from ..internals.database.database import get_raw_conn, return_conn, get_cursor
 
 def delete_artist_cache_keys(service, artist_id):
     artist_id = str(artist_id)
@@ -33,15 +32,15 @@ def delete_all_artist_keys():
     
     delete_keys(keys)
 
-def is_artist_dnp(serviuce, artist_id):
-    cursor = get_cursor
-    cursor.execute("SELECT * FROM dnp WHERE id = %s AND service = %s", (user_id, service,))
+def is_artist_dnp(service, artist_id):
+    cursor = get_cursor()
+    cursor.execute("SELECT * FROM dnp WHERE id = %s AND service = %s", (artist_id, service,))
     return len(cursor.fetchall()) > 0
 
-def index_artists(conn = None):
-    if conn is None:
-        conn = get_conn()
+def index_artists():
+    conn = get_raw_conn()
     cursor = conn.cursor()
+
     cursor.execute('select "user", "service" from "posts" as "post" where not exists (select * from "lookup" where id = post.user) group by "user", "service"')
     results = cursor.fetchall()
 
@@ -96,6 +95,7 @@ def index_artists(conn = None):
             cursor.execute(query, list(model.values()))
             conn.commit()
         except Exception:
-            current_app.logger.exception(f"Error while indexing user {post['user']}")
+            logging.exception(f"Error while indexing user {post['user']}")
 
+    cursor.close()
     return_conn(conn)

@@ -82,6 +82,9 @@ def import_posts(import_id, key, url = initial_api):
     except requests.HTTPError:
         log(import_id, f"Status code {scraper_data.status_code} when contacting Patreon API.", 'exception')
         return
+    except Exception:
+        log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
+        return
     
     conn = get_conn()
     user_id = None
@@ -102,7 +105,7 @@ def import_posts(import_id, key, url = initial_api):
                 log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
                 continue
 
-            log(import_id, f"Starting import: {post_id}")
+            log(import_id, f"Starting import: {post_id} from user {user_id}")
 
             post_model = {
                 'id': post_id,
@@ -203,18 +206,16 @@ def import_posts(import_id, key, url = initial_api):
             cursor.execute(query, list(post_model.values()))
             conn.commit()
 
-            log(import_id, f"Finished importing {post_id} from user {user_id}", to_client = True)
+            log(import_id, f"Finished importing {post_id} from user {user_id}", to_client = False)
         except Exception as e:
             log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception', True)
             conn.rollback()
             continue
 
-    return_conn(conn)
-
     next_url = scraper_data['links'].get('next')
     if next_url:
         log(import_id, f'Finished processing page ({url}). Importing {next_url}')
-        import_posts(log_id, key, 'https://' + scraper_data['links']['next'])
+        import_posts(import_id, key, 'https://' + scraper_data['links']['next'])
     else:
         log(import_id, f"Finished scanning for posts.")
         log(import_id, f"No posts detected. You either entered your session key incorrectly, or are not subscribed to any artists.")
