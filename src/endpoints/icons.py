@@ -1,9 +1,13 @@
 from flask import Blueprint, redirect, current_app
 
 import config
-from os import exists, make_dirs
+import requests
+import cloudscraper
+from os import makedirs
+from os.path import exists, join
 
 from ..internals.utils.download import download_file
+from ..internals.utils.proxy import get_proxy
 
 icons = Blueprint('icons', __name__)
 
