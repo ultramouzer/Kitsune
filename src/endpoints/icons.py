@@ -1,10 +1,12 @@
 from flask import Blueprint, redirect, current_app
 
+import re
 import config
 import requests
 import cloudscraper
 from os import makedirs
 from os.path import exists, join
+from bs4 import BeautifulSoup
 
 from ..internals.utils.download import download_file
 from ..internals.utils.proxy import get_proxy
