@@ -17,12 +17,11 @@ def import_api():
     key = request.args.get('session_key')
     import_id = get_import_id(key)
 
-    print('got hit to import', import_id)
+    logger.log(import_id, f'Starting import. Your import id is {import_id}.')
 
     if not key:
         return "", 401
     if request.args.get('service') == 'patreon':
-        print('requesting service patreon')
         th = FlaskThread(target=patreon.import_posts, args=(import_id, key)).start()
     elif request.args.get('service') == 'fanbox':
         th = FlaskThread(target=fanbox.import_posts, args=(import_id, key)).start()

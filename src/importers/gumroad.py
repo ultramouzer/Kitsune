@@ -22,8 +22,6 @@ from ..internals.utils.proxy import get_proxy
 from ..internals.utils.logger import log
 
 def import_posts(import_id, key, offset = 1):
-    log(import_id, 'Starting import')
-
     try:
         scraper = cloudscraper.create_scraper().get(
             f"https://gumroad.com/discover_search?from={offset}&user_purchases_only=true",
@@ -150,7 +148,7 @@ def import_posts(import_id, key, offset = 1):
 
     if len(products):
         next_offset = offset + scraper_data['result_count']
-        log(import_id, f'Finished processing offset {offset}. Importing offset {next_offset}')
+        log(import_id, f'Finished processing offset {offset}. Processing offset {next_offset}')
         import_posts(log_id, key, offset=next_offset)
     else:
         log(import_id, f"Finished scanning for posts.")

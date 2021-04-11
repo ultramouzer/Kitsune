@@ -22,7 +22,6 @@ from ..internals.utils.utils import get_import_id
 from ..internals.utils.logger import log
 
 def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
-    log(import_id, 'Starting import')
     try:
         scraper = requests.get(
             url,
@@ -125,7 +124,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
         
         next_url = scraper_data['body'].get('nextUrl')
         if next_url:
-            log(import_id, f'Finished processing page ({url}). Importing {next_url}')
+            log(import_id, f'Finished processing page ({url}). Processing {next_url}')
             import_posts(log_id, key, next_url)
         else:
             log(import_id, f'Finished scanning for posts')

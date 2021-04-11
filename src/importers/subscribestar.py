@@ -38,8 +38,6 @@ def strip_tags(html):
     return s.get_data()
 
 def import_posts(import_id, key):
-    log(import_id, 'Starting import')
-
     dlconfig.set(('output'), "mode", "null")
     dlconfig.set(('extractor', 'subscribestar'), "cookies", {
         "auth_token": key

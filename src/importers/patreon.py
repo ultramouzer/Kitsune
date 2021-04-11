@@ -73,8 +73,6 @@ initial_api = 'https://www.patreon.com/api/stream' + '?include=' + ','.join([
 ]) + '&json-api-use-default-includes=false' + '&json-api-version=1.0'
 
 def import_posts(import_id, key, url = initial_api):
-    log(import_id, 'Starting import', to_client = True)
-
     try:
         scraper = cloudscraper.create_scraper().get(url, cookies = { 'session_id': key }, proxies=get_proxy())
         scraper_data = scraper.json()
@@ -214,11 +212,10 @@ def import_posts(import_id, key, url = initial_api):
 
     next_url = scraper_data['links'].get('next')
     if next_url:
-        log(import_id, f'Finished processing page ({url}). Importing {next_url}')
+        log(import_id, f'Finished processing page. Processing next page.')
         import_posts(import_id, key, 'https://' + scraper_data['links']['next'])
     else:
         log(import_id, f"Finished scanning for posts.")
-        log(import_id, f"No posts detected. You either entered your session key incorrectly, or are not subscribed to any artists.")
         index_artists()
 
 if __name__ == '__main__':
