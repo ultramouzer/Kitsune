@@ -45,7 +45,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
 
             parsed_post = FanboxPost(post_id, None, post)
             if parsed_post.is_restricted:
-                log(import_id, f'Skipping post {post_id} from user {user_id} because restricted')
+                log(import_id, f'Skipping post {post_id} from user {user_id} because post is from higher subscription tier')
                 continue
             try:
                 file_directory = f"files/fanbox/{user_id}/{post_id}"
@@ -125,7 +125,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
         next_url = scraper_data['body'].get('nextUrl')
         if next_url:
             log(import_id, f'Finished processing page ({url}). Processing {next_url}')
-            import_posts(log_id, key, next_url)
+            import_posts(import_id, key, next_url)
         else:
             log(import_id, f'Finished scanning for posts')
             index_artists()

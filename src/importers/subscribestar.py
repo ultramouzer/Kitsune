@@ -37,7 +37,7 @@ def strip_tags(html):
     s.feed(html)
     return s.get_data()
 
-def import_posts(import_id, key):
+def import_posts_inner(import_id, key):
     dlconfig.set(('output'), "mode", "null")
     dlconfig.set(('extractor', 'subscribestar'), "cookies", {
         "auth_token": key
