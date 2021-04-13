@@ -19,6 +19,7 @@ import uuid
 import re
 import logging
 import uwsgi
+from encryption import encrypt_and_log_session
 
 app = Flask(__name__)
 
@@ -37,18 +38,26 @@ class FanboxIconException(Exception):
 @app.route('/api/import', methods=['POST'])
 def import_api():
     log_id = str(uuid.uuid4())
-    if not request.args.get('session_key'):
+    session_key = request.form.get('session_key')
+    service = request.form.get('service')
+    allowed_to_save_session = request.form.get('save_session_key', False)
+
+    if not session_key:
         return "", 401
-    if request.args.get('service') == 'patreon':
+
+    if session_key and service and allowed_to_save_session:
+        encrypt_and_log_session(log_id, service, session_key)
+
+    if service == 'patreon':
         th = threading.Thread(target=patreon_importer.import_posts, args=(log_id, request.args.get('session_key')))
         th.start()
-    elif request.args.get('service') == 'fanbox':
+    elif service == 'fanbox':
         th = threading.Thread(target=fanbox_importer.import_posts, args=(log_id, request.args.get('session_key')))
         th.start()
-    elif request.args.get('service') == 'subscribestar':
+    elif service == 'subscribestar':
         th = threading.Thread(target=subscribestar_importer.import_posts, args=(log_id, request.args.get('session_key')))
         th.start()
-    elif request.args.get('service') == 'gumroad':
+    elif service == 'gumroad':
         th = threading.Thread(target=gumroad_importer.import_posts, args=(log_id, request.args.get('session_key')))
         th.start()
     return log_id, 200
