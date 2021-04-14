@@ -26,6 +26,7 @@ app = Flask(__name__)
 logging.basicConfig(filename='kemono.log', level=logging.DEBUG)
 
 if uwsgi.worker_id() == 0:
+    print(get_proxy())
     backend = get_backend(f'postgres://{config.database_user}:{config.database_password}@{config.database_host}/{config.database_dbname}')
     migrations = read_migrations('./migrations')
     with backend.lock():
