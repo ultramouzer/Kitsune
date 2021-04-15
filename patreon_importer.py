@@ -92,6 +92,8 @@ def import_posts(log_id, key, url = initial_api):
         print(f'Error: Status code {scraper_data.status_code} when contacting Patreon API.')
         return
     
+    print('Got Patreon data: ' + json.dumps(scraper_data))
+
     for post in scraper_data['data']:
         try:
             file_directory = f"files/{post['relationships']['user']['data']['id']}/{post['id']}"

@@ -44,6 +44,8 @@ def import_posts(log_id, key, startFrom = 1):
         print(f'Error: Status code {scraper_data.status_code} when contacting Gumroad API.')
         return
 
+    print('Got Gumroad data: ' + json.dumps(scraper_data))
+
     if (scraper_data['total'] > 100000):
         print(f'Error: Can\'t log in; is your session key correct?')
 
