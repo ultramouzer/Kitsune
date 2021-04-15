@@ -129,6 +129,8 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
         else:
             log(import_id, f'Finished scanning for posts')
             index_artists()
+    else:
+        log(import_id, f'No posts detected.')
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
