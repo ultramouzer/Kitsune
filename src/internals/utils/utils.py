@@ -2,6 +2,7 @@ from datetime import datetime
 from flask import request, current_app, session
 import hashlib
 import random
+import dateutil.parser
 
 def get_value(d, key, default = None):
     try:
@@ -41,3 +42,11 @@ def parse_int(string, default = 0):
 def get_import_id(data):
     salt = str(random.randrange(0, 1000))
     return take(8, hashlib.sha256((data + salt).encode('utf-8')).hexdigest())
+
+def parse_date(string, default = None):
+    try:
+        return dateutil.parser.parse(string)
+    except:
+        if default is None:
+            return datetime(1970, 1, 1)
+        return default

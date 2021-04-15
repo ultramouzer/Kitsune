@@ -3,6 +3,7 @@ import datetime
 import config
 import json
 import uuid
+import time
 from os import makedirs
 from os.path import join
 from gallery_dl import job
@@ -19,6 +20,7 @@ from ..lib.post import remove_post_if_flagged_for_reimport, post_exists
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.logger import log
+from ..internals.utils.utils import parse_date
 
 class MLStripper(HTMLParser):
     def __init__(self):
@@ -37,7 +39,7 @@ def strip_tags(html):
     s.feed(html)
     return s.get_data()
 
-def import_posts_inner(import_id, key):
+def import_posts(import_id, key):
     dlconfig.set(('output'), "mode", "null")
     dlconfig.set(('extractor', 'subscribestar'), "cookies", {
         "auth_token": key
@@ -46,7 +48,6 @@ def import_posts_inner(import_id, key):
     j = job.DataJob("https://subscribestar.adult/feed") 
     j.run()
     
-
     conn = get_conn()
     user_id = None
     for message in j.data:
@@ -55,7 +56,7 @@ def import_posts_inner(import_id, key):
                 post = message[-1]
 
                 user_id = post['author_name']
-                post_id = str(post['post_id'])
+                post_id = post['post_id']
                 file_directory = f"files/subscribestar/{user_id}/{post_id}"
                 attachments_directory = f"attachments/subscribestar/{user_id}/{post_id}"
                 
@@ -63,17 +64,17 @@ def import_posts_inner(import_id, key):
                     log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
                     continue
 
-                remove_post_if_flagged_for_reimport('subscribestar', user_id, post_id)
+                remove_post_if_flagged_for_reimport('subscribestar', user_id, str(post_id))
 
-                if post_exists('subscribestar', user_id, post_id):
+                if post_exists('subscribestar', user_id, str(post_id)):
                     log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
                     continue
 
                 log(import_id, f"Starting import: {post_id}")
-                
+
                 stripped_content = strip_tags(post['content'])
                 post_model = {
-                    'id': post_id,
+                    'id': str(post_id),
                     '"user"': user_id,
                     'service': 'subscribestar',
                     'title': (stripped_content[:60] + '..') if len(stripped_content) > 60 else stripped_content,
@@ -81,7 +82,7 @@ def import_posts_inner(import_id, key):
                     'embed': {},
                     'shared_file': False,
                     'added': datetime.datetime.now(),
-                    'published': post['date'],
+                    'published': parse_date(post['date']),
                     'edited': None,
                     'file': {},
                     'attachments': []
