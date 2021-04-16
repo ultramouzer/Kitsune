@@ -15,7 +15,7 @@ def init():
             dbname = config.database_dbname,
             user = config.database_user,
             password = config.database_password,
-            port = config.database_port or 5432,
+            port = 5432,
             cursor_factory = RealDictCursor
         )
     except Exception as e:
