@@ -49,16 +49,16 @@ def import_api():
         encrypt_and_log_session(log_id, service, session_key)
 
     if service == 'patreon':
-        th = threading.Thread(target=patreon_importer.import_posts, args=(log_id, request.args.get('session_key')))
+        th = threading.Thread(target=patreon_importer.import_posts, args=(log_id, session_key))
         th.start()
     elif service == 'fanbox':
-        th = threading.Thread(target=fanbox_importer.import_posts, args=(log_id, request.args.get('session_key')))
+        th = threading.Thread(target=fanbox_importer.import_posts, args=(log_id, session_key))
         th.start()
     elif service == 'subscribestar':
-        th = threading.Thread(target=subscribestar_importer.import_posts, args=(log_id, request.args.get('session_key')))
+        th = threading.Thread(target=subscribestar_importer.import_posts, args=(log_id, session_key))
         th.start()
     elif service == 'gumroad':
-        th = threading.Thread(target=gumroad_importer.import_posts, args=(log_id, request.args.get('session_key')))
+        th = threading.Thread(target=gumroad_importer.import_posts, args=(log_id, session_key))
         th.start()
     return log_id, 200
 
