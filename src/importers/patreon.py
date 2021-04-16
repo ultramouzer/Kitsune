@@ -1,25 +1,26 @@
-import cloudscraper
-import psycopg2
-import datetime
-import config
-import time
-import uuid
-import json
 import sys
-import logging
-import requests
-
 sys.setrecursionlimit(100000)
 
-from indexer import index_artists
-from psycopg2.extras import RealDictCursor
-from urllib.parse import urlparse
+import cloudscraper
+import datetime
+import config
+import uuid
+import json
+import requests
 from os import makedirs
 from os.path import join, splitext
-from download import download_file, DownloaderException
+
+from urllib.parse import urlparse
 from gallery_dl import text
-from flag_check import check_for_flags
-from proxy import get_proxy
+
+from flask import current_app
+
+from ..internals.database.database import get_conn
+from ..lib.artist import index_artists, is_artist_dnp
+from ..lib.post import remove_post_if_flagged_for_reimport, post_exists
+from ..internals.utils.download import download_file, DownloaderException
+from ..internals.utils.proxy import get_proxy
+from ..internals.utils.logger import log
 
 initial_api = 'https://www.patreon.com/api/stream' + '?include=' + ','.join([
     'user',
@@ -71,56 +72,42 @@ initial_api = 'https://www.patreon.com/api/stream' + '?include=' + ','.join([
     'url'
 ]) + '&json-api-use-default-includes=false' + '&json-api-version=1.0'
 
-def import_posts(log_id, key, url = initial_api):
-    makedirs(join(config.download_path, 'logs'), exist_ok=True)
-    sys.stdout = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
-    # sys.stderr = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
-
-    conn = psycopg2.connect(
-        host = config.database_host,
-        dbname = config.database_dbname,
-        user = config.database_user,
-        password = config.database_password,
-        cursor_factory = RealDictCursor
-    )
-
+def import_posts(import_id, key, url = initial_api):
     try:
         scraper = cloudscraper.create_scraper().get(url, cookies = { 'session_id': key }, proxies=get_proxy())
         scraper_data = scraper.json()
         scraper.raise_for_status()
     except requests.HTTPError:
-        print(f'Error: Status code {scraper_data.status_code} when contacting Patreon API.')
+        log(import_id, f"Status code {scraper_data.status_code} when contacting Patreon API.", 'exception')
+        return
+    except Exception:
+        log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
         return
     
+    conn = get_conn()
+    user_id = None
     for post in scraper_data['data']:
         try:
-            file_directory = f"files/{post['relationships']['user']['data']['id']}/{post['id']}"
-            attachments_directory = f"attachments/{post['relationships']['user']['data']['id']}/{post['id']}"
+            user_id = post['relationships']['user']['data']['id']
+            post_id = post['id']
+            file_directory = f"files/{user_id}/{post_id}"
+            attachments_directory = f"attachments/{user_id}/{post_id}"
 
-            cursor1 = conn.cursor()
-            cursor1.execute("SELECT * FROM dnp WHERE id = %s AND service = 'patreon'", (post['relationships']['user']['data']['id'],))
-            bans = cursor1.fetchall()
-            if len(bans) > 0:
-                print(f"Skipping ID {post['id']}: user {post['relationships']['user']['data']['id']} is banned")
-                continue
-            
-            check_for_flags(
-                'patreon',
-                post['relationships']['user']['data']['id'],
-                post['id']
-            )
-
-            cursor2 = conn.cursor()
-            cursor2.execute("SELECT * FROM posts WHERE id = %s AND service = 'patreon'", (post['id'],))
-            existing_posts = cursor2.fetchall()
-            if len(existing_posts) > 0:
+            if is_artist_dnp('patreon', user_id):
+                log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list", to_client = True)
                 continue
 
-            print(f"Starting import: {post['id']}")
+            remove_post_if_flagged_for_reimport('patreon', user_id, post_id)
+
+            if post_exists('patreon', user_id, post_id):
+                log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
+                continue
+
+            log(import_id, f"Starting import: {post_id} from user {user_id}")
 
             post_model = {
-                'id': post['id'],
-                '"user"': post['relationships']['user']['data']['id'],
+                'id': post_id,
+                '"user"': user_id,
                 'service': 'patreon',
                 'title': post['attributes']['title'] or "",
                 'content': '',
@@ -164,7 +151,7 @@ def import_posts(log_id, key, url = initial_api):
             for attachment in post['relationships']['attachments']['data']:
                 filename, _ = download_file(
                     join(config.download_path, attachments_directory),
-                    f"https://www.patreon.com/file?h={post['id']}&i={attachment['id']}",
+                    f"https://www.patreon.com/file?h={post_id}&i={attachment['id']}",
                     cookies = { 'session_id': key }
                 )
                 post_model['attachments'].append({
@@ -213,21 +200,22 @@ def import_posts(log_id, key, url = initial_api):
                 fields = ','.join(columns),
                 values = ','.join(data)
             )
-            cursor3 = conn.cursor()
-            cursor3.execute(query, list(post_model.values()))
+            cursor = conn.cursor()
+            cursor.execute(query, list(post_model.values()))
             conn.commit()
-            print(f"Finished importing {post['id']}!")
+
+            log(import_id, f"Finished importing {post_id} from user {user_id}", to_client = False)
         except Exception as e:
-            print(f"Error while importing {post['id']}: {e}")
+            log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception', True)
             conn.rollback()
             continue
 
-    conn.close()
-    if scraper_data['links'].get('next'):
-        import_posts(log_id, key, 'https://' + scraper_data['links']['next'])
+    next_url = scraper_data['links'].get('next')
+    if next_url:
+        log(import_id, f'Finished processing page. Processing next page.')
+        import_posts(import_id, key, 'https://' + scraper_data['links']['next'])
     else:
-        print('Finished scanning for posts.')
-        print('No posts detected? You either entered your session key incorrectly, or are not subscribed to any artists.')
+        log(import_id, f"Finished scanning for posts.")
         index_artists()
 
 if __name__ == '__main__':

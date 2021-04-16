@@ -8,7 +8,7 @@ import functools
 import urllib
 from os import rename, makedirs
 from os.path import join, getsize, exists, splitext, basename
-from proxy import get_proxy
+from .proxy import get_proxy
 
 non_url_safe = ['"', '#', '$', '%', '&', '+',
     ',', '/', ':', ';', '=', '?',
@@ -74,7 +74,7 @@ def download_file(ddir, url, name = None, **kwargs):
                 extension = extension or '.txt'
                 filename = name or r.headers.get('x-amz-meta-original-filename')
                 if filename is None:
-                    filename = get_filename_from_cd(r.headers.get('content-disposition')) or 'Untitled' + extension
+                    filename = get_filename_from_cd(r.headers.get('content-disposition')) or (str(uuid.uuid4()) + extension)
                 filename = slugify(filename)
                 # ensure unique filename
                 filename = uniquify(join(ddir, filename))
@@ -83,9 +83,12 @@ def download_file(ddir, url, name = None, **kwargs):
                     reported_size = r.raw.tell()
                     downloaded_size = r.headers.get('content-length')
                     raise DownloaderException(f'Downloaded size is less than reported; {downloaded_size} < {reported_size}')
-                
+
                 file.close()
                 rename(join(ddir, temp_name), join(ddir, filename))
+                
+                # make_thumbnail(r.raw, )
+
                 return filename, r
         except requests.HTTPError as e:
             raise e
@@ -95,3 +98,13 @@ def download_file(ddir, url, name = None, **kwargs):
             else:
                 raise
         break
+
+# def make_thumbnail(raw_image,)
+#     try:
+#         image = Image.open(BytesIO(raw_image))
+#         image = image.convert('RGB')
+#         image.thumbnail((800, 800))
+#         makedirs(dirname(join(getenv('DB_ROOT'), 'thumbnail', path)), exist_ok=True)
+#         image.save(join(getenv('DB_ROOT'), 'thumbnail', path), 'JPEG', quality=60)
+#     except Exception as e:
+#         return f"The file you requested could not be converted. Error: {e}", 404

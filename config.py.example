@@ -3,7 +3,7 @@ download_path = '/storage'
 # database info
 database_host = 'localhost'
 database_dbname = 'kemonodb'
-database_user = 'nano
+database_user = 'nano'
 database_password = 'shinonome'
 
 # proxies = ["socks5://user:pass@host:port"]

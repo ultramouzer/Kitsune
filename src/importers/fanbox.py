@@ -2,35 +2,26 @@ import sys
 sys.path.append('./PixivUtil2')
 sys.setrecursionlimit(100000)
 
-import psycopg2
+from os import makedirs
+from os.path import join
 import requests
 import datetime
 import config
 import json
-import logging
-import uuid
 
-from indexer import index_artists
-from psycopg2.extras import RealDictCursor
+from flask import current_app
+
 from PixivUtil2.PixivModelFanbox import FanboxArtist, FanboxPost
-from proxy import get_proxy
-from download import download_file, DownloaderException
-from flag_check import check_for_flags
-from os import makedirs
-from os.path import join
-def import_posts(log_id, key, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
-    makedirs(join(config.download_path, 'logs'), exist_ok=True)
-    sys.stdout = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
-    # sys.stderr = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
 
-    conn = psycopg2.connect(
-        host = config.database_host,
-        dbname = config.database_dbname,
-        user = config.database_user,
-        password = config.database_password,
-        cursor_factory = RealDictCursor
-    )
+from ..internals.database.database import get_conn
+from ..lib.artist import index_artists, is_artist_dnp
+from ..lib.post import remove_post_if_flagged_for_reimport, post_exists
+from ..internals.utils.proxy import get_proxy
+from ..internals.utils.download import download_file, DownloaderException
+from ..internals.utils.utils import get_import_id
+from ..internals.utils.logger import log
 
+def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
     try:
         scraper = requests.get(
             url,
@@ -40,42 +31,41 @@ def import_posts(log_id, key, url = 'https://api.fanbox.cc/post.listSupporting?l
         )
         scraper_data = scraper.json()
     except requests.HTTPError:
-        print(f'Error: Status code {scraper.status_code} when contacting Patreon API.')
+        log(import_id, f'HTTP error when contacting Fanbox API ({url}). Stopping import.', 'exception')
         return
 
+    conn = get_conn()
+    user_id = None
+    posts_imported = []
+    artists_with_posts_imported = []
     if scraper_data.get('body'):
         for post in scraper_data['body']['items']:
-            parsed_post = FanboxPost(post['id'], None, post)
+            user_id = post['user']['userId']
+            post_id = post['id']
+
+            parsed_post = FanboxPost(post_id, None, post)
             if parsed_post.is_restricted:
+                log(import_id, f'Skipping post {post_id} from user {user_id} because post is from higher subscription tier')
                 continue
             try:
-                file_directory = f"files/fanbox/{post['user']['userId']}/{post['id']}"
-                attachments_directory = f"attachments/fanbox/{post['user']['userId']}/{post['id']}"
+                file_directory = f"files/fanbox/{user_id}/{post_id}"
+                attachments_directory = f"attachments/fanbox/{user_id}/{post_id}"
 
-                cursor1 = conn.cursor()
-                cursor1.execute("SELECT * FROM dnp WHERE id = %s AND service = 'fanbox'", (post['user']['userId'],))
-                bans = cursor1.fetchall()
-                if len(bans) > 0:
-                    print(f"Skipping ID {post['id']}: user {post['user']['userId']} is banned")
-                    continue
-                
-                check_for_flags(
-                    'fanbox',
-                    post['user']['userId'],
-                    post['id']
-                )
-
-                cursor2 = conn.cursor()
-                cursor2.execute("SELECT * FROM posts WHERE id = %s AND service = 'fanbox'", (post['id'],))
-                existing_posts = cursor2.fetchall()
-                if len(existing_posts) > 0:
+                if is_artist_dnp('fanbox', user_id):
+                    log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
                     continue
 
-                print(f"Starting import: {post['id']}")
+                remove_post_if_flagged_for_reimport('fanbox', user_id, post_id)
+
+                if post_exists('fanbox', user_id, post_id):
+                    log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
+                    continue
+
+                log(import_id, f"Starting import: {post_id} from user {user_id}")
 
                 post_model = {
-                    'id': post['id'],
-                    '"user"': post['user']['userId'],
+                    'id': post_id,
+                    '"user"': user_id,
                     'service': 'fanbox',
                     'title': post['title'],
                     'content': parsed_post.body_text,
@@ -122,25 +112,30 @@ def import_posts(log_id, key, url = 'https://api.fanbox.cc/post.listSupporting?l
                     fields = ','.join(columns),
                     values = ','.join(data)
                 )
-                cursor3 = conn.cursor()
-                cursor3.execute(query, list(post_model.values()))
+                cursor = conn.cursor()
+                cursor.execute(query, list(post_model.values()))
                 conn.commit()
-                print(f"Finished importing {post['id']}!")
+
+                log(import_id, f'Finished importing {post_id} for user {user_id}', to_client = False)
             except Exception as e:
-                print(f"Error while importing {post['id']}: {e}")
+                log(import_id, f'Error importing post {post_id} from user {user_id}', 'exception')
                 conn.rollback()
                 continue
         
-        if scraper_data['body'].get('nextUrl'):
-            import_posts(log_id, key, scraper_data['body']['nextUrl'])
+        next_url = scraper_data['body'].get('nextUrl')
+        if next_url:
+            log(import_id, f'Finished processing page ({url}). Processing {next_url}')
+            import_posts(import_id, key, next_url)
         else:
-            print('Finished scanning for posts.')
+            log(import_id, f'Finished scanning for posts')
             index_artists()
-    
-    conn.close()
-    
+    else:
+        log(import_id, f'No posts detected.')
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
-        import_posts(str(uuid.uuid4()), sys.argv[1])
+        key = sys.argv[1]
+        import_id = get_import_id(key)
+        import_posts(import_id, sys.argv[1])
     else:
         print('Argument required - Login token')

@@ -1,86 +1,78 @@
-import re
 import sys
+sys.setrecursionlimit(100000)
+
+import re
 import config
-import psycopg2
 import requests
 import cloudscraper
 import uuid
 import json
 import datetime
-
-sys.setrecursionlimit(100000)
-
 from bs4 import BeautifulSoup
-from indexer import index_artists
-from flag_check import check_for_flags
-from psycopg2.extras import RealDictCursor
-from download import download_file, DownloaderException
-from proxy import get_proxy
 from os.path import join
 from os import makedirs
 
-def import_posts(log_id, key, startFrom = 1):
-    makedirs(join(config.download_path, 'logs'), exist_ok=True)
-    sys.stdout = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
-    # sys.stderr = open(join(config.download_path, 'logs', f'{log_id}.log'), 'a')
+from flask import current_app
 
-    conn = psycopg2.connect(
-        host = config.database_host,
-        dbname = config.database_dbname,
-        user = config.database_user,
-        password = config.database_password,
-        cursor_factory = RealDictCursor
-    )
+from ..internals.database.database import get_conn
+from ..lib.artist import index_artists, is_artist_dnp
+from ..lib.post import remove_post_if_flagged_for_reimport, post_exists
+from ..internals.utils.download import download_file, DownloaderException
+from ..internals.utils.proxy import get_proxy
+from ..internals.utils.logger import log
+from ..internals.utils.utils import get_value
 
+def import_posts(import_id, key, offset = 1):
     try:
         scraper = cloudscraper.create_scraper().get(
-            f"https://gumroad.com/discover_search?from={startFrom}&user_purchases_only=true",
+            f"https://gumroad.com/discover_search?from={offset}&user_purchases_only=true",
             cookies = { '_gumroad_app_session': key },
             proxies=get_proxy()
         )
         scraper_data = scraper.json()
         scraper.raise_for_status()
     except requests.HTTPError:
-        print(f'Error: Status code {scraper_data.status_code} when contacting Gumroad API.')
+        log(import_id, f'Status code {scraper_data.status_code} when contacting Gumroad API.', 'exception')
         return
 
     if (scraper_data['total'] > 100000):
-        print(f'Error: Can\'t log in; is your session key correct?')
+        log(import_id, f"Can't log in; is your session key correct?")
 
     soup = BeautifulSoup(scraper_data['products_html'], 'html.parser')
     products = soup.find_all(class_='product-card')
 	
+    conn = get_conn()
+    user_id = None
     for product in products:
         post_id = product['data-permalink']
         purchase_id = product.find(class_='js-product')['data-purchase-id']
         title = product.select_one('.description-container h1 strong').string
+
         user_id_element = product.find(class_='preview-container')['data-asset-previews']
         user_id_nums = re.findall(r"\d+", user_id_element)
-        user_id = list(filter(lambda el: len(el) == 13, user_id_nums))[0]
+        user_id = get_value(list(filter(lambda el: len(el) == 13, user_id_nums)), 0)
+        if user_id is None:
+            user_name_element = get_value(product.find_all('a', {'class':'js-creator-profile-link'}), 0)
+            if user_name_element is None:
+                log(import_id, f'Skipping post {post_id}. Could not find user information.')
+                continue
+            else:
+                user_id = user_name_element.text.strip()
 
         file_directory = f"files/gumroad/{user_id}/{post_id}"
         attachments_directory = f"attachments/gumroad/{user_id}/{post_id}"
 
-        cursor1 = conn.cursor()
-        cursor1.execute("SELECT * FROM dnp WHERE id = %s AND service = 'gumroad'", (user_id,))
-        bans = cursor1.fetchall()
-        if len(bans) > 0:
-            print(f"Skipping ID {post_id}: user {user_id} is banned")
-            continue
-        
-        check_for_flags(
-            'gumroad',
-            user_id,
-            post_id
-        )
-
-        cursor2 = conn.cursor()
-        cursor2.execute("SELECT * FROM posts WHERE id = %s AND service = 'gumroad'", (post_id,))
-        existing_posts = cursor2.fetchall()
-        if len(existing_posts) > 0:
+        if is_artist_dnp('gumroad', user_id):
+            log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
             continue
 
-        print(f"Starting import: {post_id}")
+        remove_post_if_flagged_for_reimport('gumroad', user_id, post_id)
+
+        if post_exists('gumroad', user_id, post_id):
+            log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
+            continue
+
+        log(import_id, f"Starting import: {post_id} from user {user_id}")
 
         post_model = {
             'id': post_id,
@@ -123,7 +115,7 @@ def import_posts(log_id, key, startFrom = 1):
               "files": [],
               "download_info": {}
             }
-        
+
         thumbnail = thumbnail1 or thumbnail2 or thumbnail3
         if thumbnail:
             filename, _ = download_file(
@@ -132,7 +124,7 @@ def import_posts(log_id, key, startFrom = 1):
             )
             post_model['file']['name'] = filename
             post_model['file']['path'] = f'/{file_directory}/{filename}'
-        
+
         for _file in download_data['files']:
             filename, _ = download_file(
                 join(config.download_path, attachments_directory),
@@ -144,12 +136,12 @@ def import_posts(log_id, key, startFrom = 1):
                 'name': filename,
                 'path': f'/{attachments_directory}/{filename}'
             })
-        
+
         post_model['embed'] = json.dumps(post_model['embed'])
         post_model['file'] = json.dumps(post_model['file'])
         for i in range(len(post_model['attachments'])):
             post_model['attachments'][i] = json.dumps(post_model['attachments'][i])
-        
+
         columns = post_model.keys()
         data = ['%s'] * len(post_model.values())
         data[-1] = '%s::jsonb[]' # attachments
@@ -157,18 +149,19 @@ def import_posts(log_id, key, startFrom = 1):
             fields = ','.join(columns),
             values = ','.join(data)
         )
-        cursor3 = conn.cursor()
-        cursor3.execute(query, list(post_model.values()))
+        cursor = conn.cursor()
+        cursor.execute(query, list(post_model.values()))
         conn.commit()
-        print(f"Finished importing {post_id}!")
+
+        log(import_id, f"Finished importing post {post_id} from user {user_id}", to_client = False)
 
     if len(products):
-        import_posts(log_id, key, startFrom=startFrom + scraper_data['result_count'])
+        next_offset = offset + scraper_data['result_count']
+        log(import_id, f'Finished processing offset {offset}. Processing offset {next_offset}')
+        import_posts(import_id, key, offset=next_offset)
     else:
-        print('Finished scanning for posts.')
+        log(import_id, f"Finished scanning for posts.")
         index_artists()
-    
-    conn.close()
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
