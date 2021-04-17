@@ -49,7 +49,7 @@ def import_banner(service, user):
                 if soup.find('img', class_='profile_main_info-cover'):
                     download_file(
                         join(config.download_path, 'banners', service),
-                        soup.find('img', class_='profile_main_info-cover').contents[0]['src'],
+                        soup.find('img', class_='profile_main_info-cover')['src'],
                         name = user
                     )
                 else:
