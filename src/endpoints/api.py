@@ -50,7 +50,7 @@ def import_api():
 
     return import_id, 200
 
-@api.route('/api/logs/<log_id>', methods=['GET'])
-def get_logs(log_id):
-    logs = logger.get_logs(log_id)
+@api.route('/api/logs/<import_id>', methods=['GET'])
+def get_logs(import_id):
+    logs = logger.get_logs(import_id)
     return json.dumps(logs), 200

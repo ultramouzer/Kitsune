@@ -5,6 +5,7 @@ import requests
 import cloudscraper
 from os import makedirs
 from os.path import exists, join
+from bs4 import BeautifulSoup
 
 from ..internals.utils.download import download_file
 from ..internals.utils.proxy import get_proxy
@@ -54,19 +55,19 @@ def import_banner(service, user):
                 else:
                     raise BannerException()
             else:
-                with open(join(config.download_path, 'banners', service, user), 'w') as _: 
+                with open(join(config.download_path, 'banners', service, user), 'w') as _:
                     pass
         except BannerException:
             current_app.logger.exception(f'Error importing banner for {user_id} on {service}')
-            with open(join(config.download_path, 'banners', service, user), 'w') as _: 
+            with open(join(config.download_path, 'banners', service, user), 'w') as _:
                 pass
         except requests.HTTPError as e:
             if e.response.status_code == 404:
-                with open(join(config.download_path, 'banners', service, user), 'w') as _: 
+                with open(join(config.download_path, 'banners', service, user), 'w') as _:
                     pass
             else:
                 current_app.logger.exception(f'HTTP error importing banner for {user_id} on {service}')
-    
+
     response = redirect(join('/', 'banners', service, user), code=302)
     response.autocorrect_location_header = False
     return response
