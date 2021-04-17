@@ -46,10 +46,10 @@ def import_banner(service, user):
                 data = scraper.text
                 scraper.raise_for_status()
                 soup = BeautifulSoup(data, 'html.parser')
-                if soup.find('div', class_='profile_main_info-cover'):
+                if soup.find('img', class_='profile_main_info-cover'):
                     download_file(
                         join(config.download_path, 'banners', service),
-                        soup.find('div', class_='profile_main_info-cover').contents[0]['src'],
+                        soup.find('img', class_='profile_main_info-cover').contents[0]['src'],
                         name = user
                     )
                 else:
