@@ -1,11 +1,15 @@
 from flask import Blueprint, request
 import json
+import os
+import config
 
 from ..internals.utils.flask_thread import FlaskThread
 from ..internals.utils.utils import get_import_id
 from ..internals.utils.encryption import encrypt_and_log_session
 from ..internals.utils import logger
 from ..lib.import_manager import import_posts
+from ..internals.utils.download import uniquify
+from werkzeug.utils import secure_filename
 
 from ..importers import patreon
 from ..importers import fanbox
@@ -54,3 +58,13 @@ def import_api():
 def get_logs(import_id):
     logs = logger.get_logs(import_id)
     return json.dumps(logs), 200
+
+@api.route('/api/upload/<path:path>', methods=['POST'])
+def upload_file(path):
+    if 'file' not in request.files:
+        return 'No file', 400
+    uploaded_file = request.files['file']
+    os.makedirs(os.path.join(config.download_path, path), exist_ok=True)
+    filename = uniquify(os.path.join(config.download_path, path, secure_filename(uploaded_file.filename)))
+    uploaded_file.save(os.path.join(config.download_path, path, filename))
+    return os.path.join('/', path, filename), 200
