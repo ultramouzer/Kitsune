@@ -6,8 +6,10 @@ import re
 import shutil
 import functools
 import urllib
+import config
+from PIL import Image
 from os import rename, makedirs
-from os.path import join, getsize, exists, splitext, basename
+from os.path import join, getsize, exists, splitext, basename, dirname
 from .proxy import get_proxy
 
 non_url_safe = ['"', '#', '$', '%', '&', '+',
@@ -87,7 +89,7 @@ def download_file(ddir, url, name = None, **kwargs):
                 file.close()
                 rename(join(ddir, temp_name), join(ddir, filename))
                 
-                # make_thumbnail(r.raw, )
+                make_thumbnail(join(ddir, filename))
 
                 return filename, r
         except requests.HTTPError as e:
@@ -99,12 +101,12 @@ def download_file(ddir, url, name = None, **kwargs):
                 raise
         break
 
-# def make_thumbnail(raw_image,)
-#     try:
-#         image = Image.open(BytesIO(raw_image))
-#         image = image.convert('RGB')
-#         image.thumbnail((800, 800))
-#         makedirs(dirname(join(getenv('DB_ROOT'), 'thumbnail', path)), exist_ok=True)
-#         image.save(join(getenv('DB_ROOT'), 'thumbnail', path), 'JPEG', quality=60)
-#     except Exception as e:
-#         return f"The file you requested could not be converted. Error: {e}", 404
+def make_thumbnail(path):
+    try:
+        image = Image.open(path)
+        image = image.convert('RGB')
+        image.thumbnail((800, 800))
+        makedirs(dirname(join(config.download_path, 'thumbnail' + path.replace(config.download_path, ''))), exist_ok=True)
+        image.save(join(config.download_path, 'thumbnail' + path.replace(config.download_path, '')), 'JPEG', quality=60)
+    except:
+        pass
