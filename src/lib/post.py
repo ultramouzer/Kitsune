@@ -1,6 +1,8 @@
 from ..internals.cache.redis import delete_keys
 from ..internals.database.database import get_cursor, get_conn, return_conn
 from shutil import rmtree
+from os.path import join
+import config
 
 def delete_post_cache_keys(service, artist_id, post_id):
     keys = [
