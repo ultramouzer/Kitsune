@@ -63,7 +63,7 @@ def import_icon(service, user):
                 with open(join(config.download_path, 'icons', service, user), 'w') as _: 
                     pass
         except IconsException:
-            current_app.logger.exception(f'Exception when downloading icons for user {user_id} on {service}')
+            current_app.logger.exception(f'Exception when downloading icons for user {user} on {service}')
             with open(join(config.download_path, 'icons', service, user), 'w') as _: 
                 pass
         except requests.HTTPError as e:
@@ -71,7 +71,7 @@ def import_icon(service, user):
                 with open(join(config.download_path, 'icons', service, user), 'w') as _: 
                     pass
             else:
-                current_app.logger.exception(f'HTTP exception when downloading icons for user {user_id} on {service}')
+                current_app.logger.exception(f'HTTP exception when downloading icons for user {user} on {service}')
     
     response = redirect(join('/', 'icons', service, user), code=302)
     response.autocorrect_location_header = False
