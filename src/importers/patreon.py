@@ -9,6 +9,8 @@ import json
 import requests
 from os import makedirs
 from os.path import join, splitext
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 from urllib.parse import urlparse
 from gallery_dl import text
@@ -22,18 +24,16 @@ from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.logger import log
 
-initial_api = 'https://www.patreon.com/api/stream' + '?include=' + ','.join([
+posts_url = 'https://www.patreon.com/api/posts' + '?include=' + ','.join([
     'user',
-    'images',
-    'audio',
     'attachments',
-    'user_defined_tags',
-    'campaign',
-    'poll.choices',
+    'campaign,poll.choices',
     'poll.current_user_responses.user',
     'poll.current_user_responses.choice',
     'poll.current_user_responses.poll',
-    'access_rules.tier.null'
+    'access_rules.tier.null',
+    'images.null',
+    'audio.null'
 ]) + '&fields[post]=' + ','.join([
     'change_visibility_at',
     'comment_count',
@@ -47,8 +47,8 @@ initial_api = 'https://www.patreon.com/api/stream' + '?include=' + ','.join([
     'like_count',
     'min_cents_pledged_to_view',
     'post_file',
+    'post_metadata',
     'published_at',
-    'edited_at',
     'patron_count',
     'patreon_url',
     'post_type',
@@ -59,22 +59,147 @@ initial_api = 'https://www.patreon.com/api/stream' + '?include=' + ','.join([
     'upgrade_url',
     'url',
     'was_posted_by_campaign_owner',
+    'edited_at'
 ]) + '&fields[user]=' + ','.join([
     'image_url',
     'full_name',
     'url'
-]) + '&fields[campaign]=' + ','.join([
+]) + '&fields[campaign]='+ ','.join([
+    'show_audio_post_download_links',
     'avatar_photo_url',
     'earnings_visibility',
     'is_nsfw',
     'is_monthly',
     'name',
     'url'
-]) + '&json-api-use-default-includes=false' + '&json-api-version=1.0'
+]) + '&fields[access_rule]=' + ','.join([
+    'access_rule_type',
+    'amount_cents'
+]) + '&fields[media]='+ ','.join([
+    'id',
+    'image_urls',
+    'download_url',
+    'metadata',
+    'file_name',
+    'state'
+]) + '&sort=-published_at' \
++ '&filter[is_draft]=false' \
++ '&filter[contains_exclusive_posts]=true' \
++ '&json-api-use-default-includes=false&json-api-version=1.0' \
++ '&filter[campaign_id]=' #url should always end with this
 
-def import_posts(import_id, key, url = initial_api):
+campaign_list_url = 'https://www.patreon.com/api/pledges' + '?include=' + ','.join([
+    'address',
+    'campaign',
+    'reward.items',
+    'most_recent_pledge_charge_txn',
+    'reward.items.reward_item_configuration',
+    'reward.items.merch_custom_variants',
+    'reward.items.merch_custom_variants.item',
+    'reward.items.merch_custom_variants.merch_product_variant'
+]) + '&fields[address]=' + ','.join([
+    'id',
+    'addressee',
+    'line_1',
+    'line_2',
+    'city',
+    'state',
+    'postal_code',
+    'country',
+    'phone_number'
+]) + '&fields[campaign]=' + ','.join([
+    'avatar_photo_url',
+    'cover_photo_url',
+    'is_monthly',
+    'is_non_profit',
+    'name',
+    'pay_per_name',
+    'pledge_url',
+    'published_at',
+    'url'
+]) + '&fields[user]=' + ','.join([
+    'thumb_url',
+    'url',
+    'full_name'
+]) + '&fields[pledge]=' + ','.join([
+    'amount_cents',
+    'currency',
+    'pledge_cap_cents',
+    'cadence',
+    'created_at',
+    'has_shipping_address',
+    'is_paused',
+    'status'
+]) + '&fields[reward]=' + ','.join([
+    'description',
+    'requires_shipping',
+    'unpublished_at'
+]) + '&fields[reward-item]=' + ','.join([
+    'id',
+    'title',
+    'description',
+    'requires_shipping',
+    'item_type',
+    'is_published',
+    'is_ended',
+    'ended_at',
+    'reward_item_configuration'
+]) + '&fields[merch-custom-variant]=' + ','.join([
+    'id',
+    'item_id'
+]) + '&fields[merch-product-variant]=' + ','.join([
+    'id',
+    'color',
+    'size_code'
+]) + '&fields[txn]=' + ','.join([
+    'succeeded_at',
+    'failed_at'
+]) + '&json-api-use-default-includes=false&json-api-version=1.0'
+
+def create_scrapper_session(
+    retries=3,
+    backoff_factor=0.3,
+    status_forcelist=(500, 502, 504)
+):
+    session = cloudscraper.create_scraper()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
+
+def get_campaign_ids(key, import_id):
     try:
-        scraper = cloudscraper.create_scraper().get(url, cookies = { 'session_id': key }, proxies=get_proxy())
+        scraper = create_scrapper_session().get(campaign_list_url, cookies = { 'session_id': key }, proxies=get_proxy())
+        scraper_data = scraper.json()
+        scraper.raise_for_status()
+    except requests.HTTPError:
+        log(import_id, f"Status code {scraper_data.status_code} when contacting Patreon API.", 'exception')
+        return
+    except Exception:
+        log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
+        return
+
+    campaign_ids = []
+    for pledge in scraper_data['data']:
+        try:
+             campaign_id = pledge['relationships']['campaign']['data']['id']
+             campaign_ids.append(campaign_id)
+        except Exception as e:
+            log(import_id, f"Error while importing campaign id for pledge {pledge['id']}", 'exception', True)
+            continue   
+
+    return campaign_ids
+
+def import_campaign_page(url, key, import_id): 
+    try:
+        scraper = create_scrapper_session().get(url, cookies = { 'session_id': key }, proxies=get_proxy())
         scraper_data = scraper.json()
         scraper.raise_for_status()
     except requests.HTTPError:
@@ -96,6 +221,10 @@ def import_posts(import_id, key, url = initial_api):
             if is_artist_dnp('patreon', user_id):
                 log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list", to_client = True)
                 continue
+
+            if not post['attributes']['current_user_can_view']:
+                log(import_id, f'Skipping {post_id} from user {user_id} because this post is not available for current subscription tier', to_client = True)
+                continue            
 
             remove_post_if_flagged_for_reimport('patreon', user_id, post_id)
 
@@ -209,14 +338,22 @@ def import_posts(import_id, key, url = initial_api):
             log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception', True)
             conn.rollback()
             continue
-
-    next_url = scraper_data['links'].get('next')
-    if next_url:
+    
+    if 'links' in scraper_data and 'next' in scraper_data['links']:
         log(import_id, f'Finished processing page. Processing next page.')
-        import_posts(import_id, key, 'https://' + scraper_data['links']['next'])
+        import_campaign_page(scraper_data['links']['next'], key, import_id)
     else:
         log(import_id, f"Finished scanning for posts.")
         index_artists()
+
+def import_posts(import_id, key):
+    campaign_ids = get_campaign_ids(key, import_id)
+    if len(campaign_ids) > 0:
+        for campaign_id in campaign_ids:
+            log(import_id, f"Importing campaign {campaign_id}", to_client = True)
+            import_campaign_page(posts_url + str(campaign_id), key, import_id)
+    else:
+        log(import_id, f"No active subscriptions. No posts will be imported.", to_client = True)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
