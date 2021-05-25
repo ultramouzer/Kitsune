@@ -41,4 +41,8 @@ def get_conn():
     return g.connection
 
 def return_conn(conn):
-    pool.putconn(conn)
+    if conn is not None:
+        try:
+            pool.putconn(conn)
+        except:
+            pass
