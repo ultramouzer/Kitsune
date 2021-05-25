@@ -3,6 +3,7 @@ sys.setrecursionlimit(100000)
 
 import cloudscraper
 import datetime
+import dateutil
 import config
 import uuid
 import json
@@ -156,6 +157,61 @@ campaign_list_url = 'https://www.patreon.com/api/pledges' + '?include=' + ','.jo
     'failed_at'
 ]) + '&json-api-use-default-includes=false&json-api-version=1.0'
 
+bills_url = 'https://www.patreon.com/api/bills' + '?timezone=UTC' + '&include=' + ','.join([
+    'post.campaign.null',
+    'campaign.null',
+    'card.null'
+]) + '&fields[campaign]=' + ','.join([
+    'avatar_photo_url',
+    'currency',
+    'cover_photo_url',
+    'is_monthly',
+    'is_non_profit',
+    'is_nsfw',
+    'name',
+    'pay_per_name',
+    'pledge_url',
+    'url'
+]) + '&fields[post]=' + ','.join([
+    'title',
+    'is_automated_monthly_charge',
+    'published_at',
+    'thumbnail',
+    'url',
+    'pledge_url'
+]) + '&fields[bill]=' + ','.join([
+    'status',
+    'amount_cents',
+    'created_at',
+    'due_date',
+    'vat_charge_amount_cents',
+    'vat_country',
+    'monthly_payment_basis',
+    'patron_fee_cents',
+    'is_non_profit',
+    'bill_type',
+    'currency',
+    'cadence',
+    'taxable_amount_cents'
+]) + '&fields[patronage_purchase]=' + ','.join([
+    'amount_cents',
+    'currency',
+    'created_at',
+    'due_date',
+    'vat_charge_amount_cents',
+    'vat_country',
+    'status',
+    'cadence',
+    'taxable_amount_cents'
+]) + '&fields[card]=' + ','.join([ #we fetch the same fields as the patreon site itself to not trigger any possible protections. User card data is actually not saved or accessed.
+    'number',
+    'expiration_date',
+    'card_type',
+    'merchant_name',
+    'needs_sfw_auth',
+    'needs_nsfw_auth'
+]) + '&json-api-use-default-includes=false&json-api-version=1.0&filter[due_date_year]='
+
 def create_scrapper_session(
     retries=3,
     backoff_factor=0.3,
@@ -174,7 +230,8 @@ def create_scrapper_session(
     session.mount('https://', adapter)
     return session
 
-def get_campaign_ids(key, import_id):
+#get ids of campaigns with active pledge
+def get_active_campaign_ids(key, import_id):
     try:
         scraper = create_scrapper_session().get(campaign_list_url, cookies = { 'session_id': key }, proxies=get_proxy())
         scraper_data = scraper.json()
@@ -186,16 +243,88 @@ def get_campaign_ids(key, import_id):
         log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
         return
 
-    campaign_ids = []
+    campaign_ids = set()
     for pledge in scraper_data['data']:
         try:
              campaign_id = pledge['relationships']['campaign']['data']['id']
-             campaign_ids.append(campaign_id)
+             campaign_ids.add(campaign_id)
         except Exception as e:
-            log(import_id, f"Error while importing campaign id for pledge {pledge['id']}", 'exception', True)
-            continue   
-
+            log(import_id, f"Error while retieving campaign id for pledge {pledge['id']}", 'exception', True)
+            continue
+    
     return campaign_ids
+
+#Retrieve ids of campaigns for which pledge has been cancelled
+#but they've been paid for in this or previous month
+def get_cancelled_campaign_ids(key, import_id):
+    today_date = datetime.datetime.today()
+    bill_data = []
+    try:
+        scraper = create_scrapper_session().get(bills_url  + str(today_date.year), cookies = { 'session_id': key }, proxies=get_proxy())
+        scraper_data = scraper.json()
+        scraper.raise_for_status()
+
+        bill_data.extend(scraper_data['data'])
+
+        #get data for previous year as well if today's date is less or equal to january 7th
+        if today_date.month == 1 and today_date.day <= 7:
+            scraper = create_scrapper_session().get(bills_url  + str(today_date.year - 1), cookies = { 'session_id': key }, proxies=get_proxy())
+            scraper_data = scraper.json()
+            scraper.raise_for_status()
+
+            if 'data' in scraper_data and len(scraper_data['data']) > 0:
+                bill_data.extend(scraper_data['data'])
+    except requests.HTTPError:
+        log(import_id, f"Status code {scraper_data.status_code} when contacting Patreon API.", 'exception')
+        return
+    except Exception:
+        log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
+        return
+
+    bills = []
+    for bill in bill_data:
+        try:
+            if bill['attributes']['status'] != 'successful':
+                continue
+
+            due_date = dateutil.parser.parse(bill['attributes']['due_date'])
+            
+            #We check all bills for the current month as well as bills from the previous month
+            #for the first 7 days of the current month because posts are still available 
+            #for some time after cancelling membership
+            if due_date.month == today_date.month or ((due_date.month == today_date.month - 1 or (due_date.month == 12 and today_date.month == 1)) and today_date.day <= 7):
+                bills.append(bill)
+        except Exception as e:
+            log(import_id, f"Error while parsing one of the bills", 'exception', True)
+            continue
+
+    campaign_ids = set()
+    
+    if len(bills) > 0:
+        for bill in bills:
+            try:
+                campaign_id = bill['relationships']['campaign']['data']['id']
+                if not campaign_id in campaign_ids:
+                    campaign_ids.add(campaign_id)
+            except Exception as e:
+                log(import_id, f"Error while retrieving one of the cancelled campaign ids", 'exception', True)
+                continue
+
+    return campaign_ids       
+
+def get_campaign_ids(key, import_id):
+    active_campaign_ids = get_active_campaign_ids(key, import_id)
+    cancelled_campaign_ids = get_cancelled_campaign_ids(key, import_id)
+
+    campaign_ids = set()
+
+    if len(active_campaign_ids) > 0:
+        campaign_ids.update(active_campaign_ids)
+
+    if len(cancelled_campaign_ids) > 0:
+        campaign_ids.update(cancelled_campaign_ids)
+
+    return list(campaign_ids)
 
 def import_campaign_page(url, key, import_id): 
     try:
