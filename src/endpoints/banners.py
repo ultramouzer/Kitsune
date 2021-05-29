@@ -58,7 +58,7 @@ def import_banner(service, user):
                 with open(join(config.download_path, 'banners', service, user), 'w') as _:
                     pass
         except BannerException:
-            current_app.logger.exception(f'Error importing banner for {user_id} on {service}')
+            current_app.logger.exception(f'Error importing banner for {user} on {service}')
             with open(join(config.download_path, 'banners', service, user), 'w') as _:
                 pass
         except requests.HTTPError as e:
@@ -66,7 +66,7 @@ def import_banner(service, user):
                 with open(join(config.download_path, 'banners', service, user), 'w') as _:
                     pass
             else:
-                current_app.logger.exception(f'HTTP error importing banner for {user_id} on {service}')
+                current_app.logger.exception(f'HTTP error importing banner for {user} on {service}')
 
     response = redirect(join('/', 'banners', service, user), code=302)
     response.autocorrect_location_header = False
