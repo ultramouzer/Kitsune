@@ -24,6 +24,16 @@ class DuplicateException(Exception):
 class DownloaderException(Exception):
     pass
 
+def uniquify(path):
+    filename, extension = splitext(path)
+    counter = 1
+
+    while exists(path.encode('utf-8')):
+        path = filename + "_" + str(counter) + extension
+        counter += 1
+
+    return basename(path)
+
 def check_for_duplicate(path, temp_path):
     if exists(path):
         if (get_hash_of_file(path) != get_hash_of_file(temp_path)):
