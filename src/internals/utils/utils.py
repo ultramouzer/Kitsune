@@ -3,6 +3,7 @@ from flask import request, current_app, session
 import hashlib
 import random
 import dateutil.parser
+import hashlib
 
 def get_value(d, key, default = None):
     try:
@@ -50,3 +51,10 @@ def parse_date(string, default = None):
         if default is None:
             return datetime(1970, 1, 1)
         return default
+
+def get_hash_of_file(filename):
+    with open(filename, 'rb') as f:
+        file_hash = hashlib.md5()
+        while chunk := f.read(8192):
+            file_hash.update(chunk)
+    return file_hash.hexdigest()

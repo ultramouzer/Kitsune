@@ -8,9 +8,10 @@ import functools
 import urllib
 import config
 from PIL import Image
-from os import rename, makedirs
+from os import rename, makedirs, remove
 from os.path import join, getsize, exists, splitext, basename, dirname
 from .proxy import get_proxy
+from .utils import get_hash_of_file
 
 non_url_safe = ['"', '#', '$', '%', '&', '+',
     ',', '/', ':', ';', '=', '?',
@@ -20,11 +21,14 @@ non_url_safe = ['"', '#', '$', '%', '&', '+',
 class DownloaderException(Exception):
     pass
 
-def uniquify(path):
+def uniquify(path, temp_path):
     filename, extension = splitext(path)
     counter = 1
 
-    while exists(path.encode('utf-8')):
+    while exists(path):
+        if (get_hash_of_file(path) == get_hash_of_file(temp_path)):
+            remove(path)
+            continue
         path = filename + "_" + str(counter) + extension
         counter += 1
 
@@ -79,7 +83,7 @@ def download_file(ddir, url, name = None, **kwargs):
                     filename = get_filename_from_cd(r.headers.get('content-disposition')) or (str(uuid.uuid4()) + extension)
                 filename = slugify(filename)
                 # ensure unique filename
-                filename = uniquify(join(ddir, filename))
+                filename = uniquify(join(ddir, filename), join(ddir, temp_name))
                 # content integrity
                 if r.headers.get('content-length') and r.raw.tell() < int(r.headers.get('content-length')):
                     reported_size = r.raw.tell()

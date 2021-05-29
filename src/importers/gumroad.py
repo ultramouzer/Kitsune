@@ -16,7 +16,7 @@ from flask import current_app
 
 from ..internals.database.database import get_conn
 from ..lib.artist import index_artists, is_artist_dnp
-from ..lib.post import remove_post_if_flagged_for_reimport, post_exists
+from ..lib.post import post_flagged, post_exists
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.logger import log
@@ -66,9 +66,7 @@ def import_posts(import_id, key, offset = 1):
             log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
             continue
 
-        remove_post_if_flagged_for_reimport('gumroad', user_id, post_id)
-
-        if post_exists('gumroad', user_id, post_id):
+        if post_exists('gumroad', user_id, post_id) and not post_flagged('gumroad', user_id, post_id):
             log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
             continue
 
@@ -145,9 +143,10 @@ def import_posts(import_id, key, offset = 1):
         columns = post_model.keys()
         data = ['%s'] * len(post_model.values())
         data[-1] = '%s::jsonb[]' # attachments
-        query = "INSERT INTO posts ({fields}) VALUES ({values})".format(
+        query = "INSERT INTO posts ({fields}) VALUES ({values}) ON CONFLICT (id, service) UPDATE SET {updates}".format(
             fields = ','.join(columns),
-            values = ','.join(data)
+            values = ','.join(data),
+            updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
         )
         cursor = conn.cursor()
         cursor.execute(query, list(post_model.values()))

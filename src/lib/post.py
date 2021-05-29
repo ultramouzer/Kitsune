@@ -21,30 +21,8 @@ def post_exists(service, artist_id, post_id):
     cursor.execute("SELECT * FROM posts WHERE id = %s AND \"user\" = %s AND service = %s", (post_id, artist_id, service,))
     return len(cursor.fetchall()) > 0
 
-def remove_post_if_flagged_for_reimport(service, user, post):
-    conn = get_conn()
+def post_flagged(service, artist_id, post_id):
     cursor = get_cursor()
-
-    cursor.execute('SELECT * FROM booru_flags WHERE service = %s AND "user" = %s AND id = %s', (service, user, post))
+    cursor.execute('SELECT * FROM booru_flags WHERE service = %s AND "user" = %s AND id = %s', (service, artist_id, post_id))
     existing_flags = cursor.fetchall()
-    if len(existing_flags) == 0:
-        return
-
-    cursor.execute('DELETE FROM booru_flags WHERE service = %s AND "user" = %s AND id = %s', (service, user, post))
-    cursor.execute('DELETE FROM posts WHERE service = %s AND "user" = %s AND id = %s', (service, user, post))
-    conn.commit()
-    return_conn(conn)
-    rmtree(join(
-        config.download_path,
-        'attachments',
-        '' if service == 'patreon' else service,
-        user,
-        post
-    ), ignore_errors=True)
-    rmtree(join(
-        config.download_path,
-        'files',
-        '' if service == 'patreon' else service,
-        user,
-        post
-    ), ignore_errors=True)
+    return len(existing_flags) > 0
