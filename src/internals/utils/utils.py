@@ -55,6 +55,6 @@ def parse_date(string, default = None):
 def get_hash_of_file(filename):
     with open(filename, 'rb') as f:
         file_hash = hashlib.md5()
-        while chunk := f.read(8192):
+        for chunk in iter(lambda: f.read(8192), b''):
             file_hash.update(chunk)
     return file_hash.hexdigest()
