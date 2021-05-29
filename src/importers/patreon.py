@@ -236,12 +236,12 @@ def get_active_campaign_ids(key, import_id):
         scraper = create_scrapper_session().get(campaign_list_url, cookies = { 'session_id': key }, proxies=get_proxy())
         scraper_data = scraper.json()
         scraper.raise_for_status()
-    except requests.HTTPError:
-        log(import_id, f"Status code {scraper_data.status_code} when contacting Patreon API.", 'exception')
-        return
+    except requests.HTTPError as e:
+        log(import_id, f"Status code {e.response.status_code} when contacting Patreon API.", 'exception')
+        return set()
     except Exception:
         log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
-        return
+        return set()
 
     campaign_ids = set()
     for pledge in scraper_data['data']:
@@ -274,12 +274,12 @@ def get_cancelled_campaign_ids(key, import_id):
 
             if 'data' in scraper_data and len(scraper_data['data']) > 0:
                 bill_data.extend(scraper_data['data'])
-    except requests.HTTPError:
-        log(import_id, f"Status code {scraper_data.status_code} when contacting Patreon API.", 'exception')
-        return
+    except requests.HTTPError as exc:
+        log(import_id, f"Status code {exc.response.status_code} when contacting Patreon API.", 'exception')
+        return set()
     except Exception:
         log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
-        return
+        return set()
 
     bills = []
     for bill in bill_data:
@@ -331,8 +331,8 @@ def import_campaign_page(url, key, import_id):
         scraper = create_scrapper_session().get(url, cookies = { 'session_id': key }, proxies=get_proxy())
         scraper_data = scraper.json()
         scraper.raise_for_status()
-    except requests.HTTPError:
-        log(import_id, f"Status code {scraper_data.status_code} when contacting Patreon API.", 'exception')
+    except requests.HTTPError as e:
+        log(import_id, f"Status code {e.response.status_code} when contacting Patreon API.", 'exception')
         return
     except Exception:
         log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
@@ -481,7 +481,7 @@ def import_posts(import_id, key):
             log(import_id, f"Importing campaign {campaign_id}", to_client = True)
             import_campaign_page(posts_url + str(campaign_id), key, import_id)
     else:
-        log(import_id, f"No active subscriptions. No posts will be imported.", to_client = True)
+        log(import_id, f"No active subscriptions or invalid key. No posts will be imported.", to_client = True)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
