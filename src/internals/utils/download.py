@@ -18,21 +18,18 @@ non_url_safe = ['"', '#', '$', '%', '&', '+',
     '@', '[', '\\', ']', '^', '`',
     '{', '|', '}', '~', "'"]
 
+class DuplicateException(Exception):
+    pass
+
 class DownloaderException(Exception):
     pass
 
-def uniquify(path, temp_path):
-    filename, extension = splitext(path)
-    counter = 1
-
-    while exists(path):
+def check_for_duplicate(path, temp_path):
+    if exists(path):
         if (get_hash_of_file(path) != get_hash_of_file(temp_path)):
             remove(path)
-            continue
-        path = filename + "_" + str(counter) + extension
-        counter += 1
-
-    return basename(path)
+        else:
+            raise DuplicateException()
 
 def get_filename_from_cd(cd):
     if not cd:
@@ -83,7 +80,10 @@ def download_file(ddir, url, name = None, **kwargs):
                     filename = get_filename_from_cd(r.headers.get('content-disposition')) or (str(uuid.uuid4()) + extension)
                 filename = slugify(filename)
                 # ensure unique filename
-                filename = uniquify(join(ddir, filename), join(ddir, temp_name))
+                try:
+                    check_for_duplicate(join(ddir, filename), join(ddir, temp_name))
+                except DuplicateException:
+                    return filename, r
                 # content integrity
                 if r.headers.get('content-length') and r.raw.tell() < int(r.headers.get('content-length')):
                     reported_size = r.raw.tell()
