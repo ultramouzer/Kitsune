@@ -2,7 +2,7 @@ from flask import Flask, g
 from yoyo import read_migrations
 from yoyo import get_backend
 import logging
-# import uwsgi
+import uwsgi
 import config
 
 from src.endpoints.api import api
@@ -27,12 +27,12 @@ logging.getLogger('urllib3').setLevel(logging.WARNING)
 database.init()
 redis.init()
 
-# if uwsgi.worker_id() == 0:
-#     backend = get_backend(f'postgres://{config.database_user}:{config.database_password}@{config.database_host}/{config.database_dbname}')
-#     migrations = read_migrations('./migrations')
-#     with backend.lock():
-#         backend.apply_migrations(backend.to_apply(migrations))
-#     index_artists()
+if uwsgi.worker_id() == 0:
+    backend = get_backend(f'postgres://{config.database_user}:{config.database_password}@{config.database_host}/{config.database_dbname}')
+    migrations = read_migrations('./migrations')
+    with backend.lock():
+        backend.apply_migrations(backend.to_apply(migrations))
+    index_artists()
 
 @app.teardown_appcontext
 def close(e):
