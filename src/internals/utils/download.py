@@ -26,7 +26,7 @@ def uniquify(path, temp_path):
     counter = 1
 
     while exists(path):
-        if (get_hash_of_file(path) == get_hash_of_file(temp_path)):
+        if (get_hash_of_file(path) != get_hash_of_file(temp_path)):
             remove(path)
             continue
         path = filename + "_" + str(counter) + extension
