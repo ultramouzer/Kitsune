@@ -135,6 +135,11 @@ def process_channel(channel_id, server_id, import_id, key, before = None):
             cursor.execute(query, list(post_model.values()))
             conn.commit()        
 
+            if (config.ban_url):
+                requests.request('BAN', f"{config.ban_url}/discord/server/{post_model['server']}")
+                requests.request('BAN', f"{config.ban_url}/api/discord/channel/{post_model['channel']}")
+                requests.request('BAN', f"{config.ban_url}/api/discord/channels/lookup?q={post_model['server']}")
+
             log(import_id, f"Finished importing {post_id} from channel {channel_id}", to_client = False)    
         except Exception as e:
             log(import_id, f"Error while importing {post_id} from channel {channel_id}", 'exception', True)

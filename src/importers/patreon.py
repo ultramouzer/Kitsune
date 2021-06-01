@@ -443,6 +443,12 @@ def import_campaign_page(url, key, import_id):
             cursor.execute(query, list(post_model.values()))
             conn.commit()
 
+            if (config.ban_url):
+                requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
+                requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'] + f"/post/{post_model['id']}")
+                requests.request('BAN', f"{config.ban_url}/api/{post_model['service']}/user/" + post_model['"user"'])
+                requests.request('BAN', f"{config.ban_url}/api/{post_model['service']}/user/" + post_model['"user"'] + f"/post/{post_model['id']}")
+
             log(import_id, f"Finished importing {post_id} from user {user_id}", to_client = False)
         except Exception as e:
             log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception', True)

@@ -4,6 +4,7 @@ import config
 import json
 import uuid
 import time
+import requests
 from os import makedirs
 from os.path import join
 from gallery_dl import job
@@ -122,6 +123,12 @@ def import_posts(import_id, key):
                 cursor3 = conn.cursor()
                 cursor3.execute(query, list(post_model.values()))
                 conn.commit()
+
+                if (config.ban_url):
+                    requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
+                    requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'] + f"/post/{post_model['id']}")
+                    requests.request('BAN', f"{config.ban_url}/api/{post_model['service']}/user/" + post_model['"user"'])
+                    requests.request('BAN', f"{config.ban_url}/api/{post_model['service']}/user/" + post_model['"user"'] + f"/post/{post_model['id']}")
 
                 log(import_id, f"Finished importing {post_id} from user {user_id}", to_client = False)
         except Exception:
