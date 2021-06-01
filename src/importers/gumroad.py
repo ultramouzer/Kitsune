@@ -154,9 +154,7 @@ def import_posts(import_id, key, offset = 1):
 
         if (config.ban_url):
             requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
-            requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'] + f"/post/{post_model['id']}")
             requests.request('BAN', f"{config.ban_url}/api/{post_model['service']}/user/" + post_model['"user"'])
-            requests.request('BAN', f"{config.ban_url}/api/{post_model['service']}/user/" + post_model['"user"'] + f"/post/{post_model['id']}")
 
         log(import_id, f"Finished importing post {post_id} from user {user_id}", to_client = False)
 
