@@ -19,7 +19,7 @@ from flask import current_app
 
 from ..internals.database.database import get_conn
 from ..lib.artist import index_artists, is_artist_dnp
-from ..lib.post import post_flagged, post_exists
+from ..lib.post import post_flagged, post_exists, delete_post_flags
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.logger import log
@@ -443,6 +443,8 @@ def import_campaign_page(url, key, import_id):
             cursor.execute(query, list(post_model.values()))
             conn.commit()
 
+            delete_post_flags('patreon', user_id, post_id)
+            
             if (config.ban_url):
                 requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
                 requests.request('BAN', f"{config.ban_url}/api/{post_model['service']}/user/" + post_model['"user"'])

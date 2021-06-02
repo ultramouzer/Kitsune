@@ -31,3 +31,10 @@ def discord_post_exists(server_id, channel_id, post_id):
     cursor = get_cursor()
     cursor.execute("SELECT id FROM discord_posts WHERE id = %s AND server = %s AND channel = %s", (post_id, server_id, channel_id))
     return len(cursor.fetchall()) > 0
+
+def delete_post_flags(service, artist_id, post_id):
+    conn = get_conn()
+    cursor = get_cursor()
+    cursor.execute('DELETE FROM booru_flags WHERE service = %s AND "user" = %s AND id = %s', (service, artist_id, post_id))
+    conn.commit()
+    return_conn(conn)
