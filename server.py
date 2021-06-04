@@ -41,6 +41,9 @@ def close(e):
         cursor.close()
         connection = g.pop('connection', None)
         if connection is not None:
-            connection.commit()
-            pool = database.get_pool()
-            pool.putconn(connection)
+            try:
+                connection.commit()
+                pool = database.get_pool()
+                pool.putconn(connection)
+            except:
+                pass
