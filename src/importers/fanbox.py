@@ -78,26 +78,82 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                 }
 
                 for i in range(len(parsed_post.embeddedFiles)):
-                    if i == 0:
-                        filename, _ = download_file(
-                            join(config.download_path, file_directory),
-                            parsed_post.embeddedFiles[i],
-                            cookies={ 'FANBOXSESSID': key },
-                            headers={ 'origin': 'https://fanbox.cc' }
-                        )
-                        post_model['file']['name'] = filename
-                        post_model['file']['path'] = f'/{file_directory}/{filename}'
-                    else:
-                        filename, _ = download_file(
-                            join(config.download_path, attachments_directory),
-                            parsed_post.embeddedFiles[i],
-                            cookies={ 'FANBOXSESSID': key },
-                            headers={ 'origin': 'https://fanbox.cc' }
-                        )
-                        post_model['attachments'].append({
-                            'name': filename,
-                            'path': f'/{attachments_directory}/{filename}'
-                        })
+                    if type(parsed_post.embeddedFiles[i]) is dict:
+                        if parsed_post.embeddedFiles[i]['serviceProvider'] == 'twitter':
+                            post_model['content'] += f"""
+                                <a href="https://twitter.com/_/status/{parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
+                                    <div class="embed-view">
+                                      <h3 class="subtitle">(Twitter)</h3>
+                                    </div>
+                                </a>
+                                <br>
+                            """
+                        elif parsed_post.embeddedFiles[i]['serviceProvider'] == 'youtube': 
+                            post_model['content'] += f"""
+                                <a href="https://www.youtube.com/watch?v={parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
+                                    <div class="embed-view">
+                                      <h3 class="subtitle">(YouTube)</h3>
+                                    </div>
+                                </a>
+                                <br>
+                            """
+                        elif parsed_post.embeddedFiles[i]['serviceProvider'] == 'fanbox': 
+                            post_model['content'] += f"""
+                                <a href="https://www.pixiv.net/fanbox/{parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
+                                    <div class="embed-view">
+                                      <h3 class="subtitle">(Fanbox)</h3>
+                                    </div>
+                                </a>
+                                <br>
+                            """
+                        elif parsed_post.embeddedFiles[i]['serviceProvider'] == 'vimeo': 
+                            post_model['content'] += f"""
+                                <a href="https://vimeo.com/{parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
+                                    <div class="embed-view">
+                                      <h3 class="subtitle">(Vimeo)</h3>
+                                    </div>
+                                </a>
+                                <br>
+                            """
+                        elif parsed_post.embeddedFiles[i]['serviceProvider'] == 'google_forms': 
+                            post_model['content'] += f"""
+                                <a href="https://docs.google.com/forms/d/e/{parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
+                                    <div class="embed-view">
+                                      <h3 class="subtitle">(Google Forms)</h3>
+                                    </div>
+                                </a>
+                                <br>
+                            """
+                        elif parsed_post.embeddedFiles[i]['serviceProvider'] == 'soundcloud': 
+                            post_model['content'] += f"""
+                                <a href="https://soundcloud.com/{parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
+                                    <div class="embed-view">
+                                      <h3 class="subtitle">(Soundcloud)</h3>
+                                    </div>
+                                </a>
+                                <br>
+                            """
+                    elif type(parsed_post.embeddedFiles[i]) is str:
+                        if i == 0:
+                            filename, _ = download_file(
+                                join(config.download_path, file_directory),
+                                parsed_post.embeddedFiles[i],
+                                cookies={ 'FANBOXSESSID': key },
+                                headers={ 'origin': 'https://fanbox.cc' }
+                            )
+                            post_model['file']['name'] = filename
+                            post_model['file']['path'] = f'/{file_directory}/{filename}'
+                        else:
+                            filename, _ = download_file(
+                                join(config.download_path, attachments_directory),
+                                parsed_post.embeddedFiles[i],
+                                cookies={ 'FANBOXSESSID': key },
+                                headers={ 'origin': 'https://fanbox.cc' }
+                            )
+                            post_model['attachments'].append({
+                                'name': filename,
+                                'path': f'/{attachments_directory}/{filename}'
+                            })
 
                 post_model['embed'] = json.dumps(post_model['embed'])
                 post_model['file'] = json.dumps(post_model['file'])
