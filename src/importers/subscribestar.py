@@ -115,7 +115,7 @@ def import_posts(import_id, key):
                 columns = post_model.keys()
                 data = ['%s'] * len(post_model.values())
                 data[-1] = '%s::jsonb[]' # attachments
-                query = "INSERT INTO posts ({fields}) VALUES ({values}) ON CONFLICT (id, service) UPDATE SET {updates}".format(
+                query = "INSERT INTO posts ({fields}) VALUES ({values}) ON CONFLICT (id, service) DO UPDATE SET {updates}".format(
                     fields = ','.join(columns),
                     values = ','.join(data),
                     updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
