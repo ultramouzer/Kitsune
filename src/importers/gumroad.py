@@ -45,7 +45,7 @@ def import_posts(import_id, key, offset = 1):
     user_id = None
     for product in products:
         post_id = product['data-permalink']
-        purchase_id = product.find(class_='js-product')['data-purchase-id']
+        purchase_download_url = product.find(class_='js-product')['data-purchase-download-url']
         title = product.select_one('.description-container h1 strong').string
 
         user_id_element = product.find(class_='preview-container')['data-asset-previews']
@@ -86,18 +86,9 @@ def import_posts(import_id, key, offset = 1):
             'file': {},
             'attachments': []
         }
-        
-        scraper2 = create_scrapper_session().get(
-            f"https://gumroad.com/library/purchases/{purchase_id}",
-            cookies = { '_gumroad_app_session': key },
-            proxies=get_proxy()
-        )
-        scraper_data2 = scraper2.text
-        soup2 = BeautifulSoup(scraper_data2, 'html.parser')
-        content_url = soup2.select_one('.button.button-primary.button-block')['href']
 
         scraper3 = create_scrapper_session().get(
-            content_url,
+            purchase_download_url,
             cookies = { '_gumroad_app_session': key },
             proxies=get_proxy()
         )
@@ -143,7 +134,7 @@ def import_posts(import_id, key, offset = 1):
         columns = post_model.keys()
         data = ['%s'] * len(post_model.values())
         data[-1] = '%s::jsonb[]' # attachments
-        query = "INSERT INTO posts ({fields}) VALUES ({values}) ON CONFLICT (id, service) UPDATE SET {updates}".format(
+        query = "INSERT INTO posts ({fields}) VALUES ({values}) ON CONFLICT (id, service) DO UPDATE SET {updates}".format(
             fields = ','.join(columns),
             values = ','.join(data),
             updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
