@@ -176,7 +176,6 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
 
                 if (config.ban_url):
                     requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
-                    requests.request('BAN', f"{config.ban_url}/api/{post_model['service']}/user/" + post_model['"user"'])
 
                 log(import_id, f'Finished importing {post_id} for user {user_id}', to_client = False)
             except Exception as e:
