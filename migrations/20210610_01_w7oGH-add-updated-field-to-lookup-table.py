@@ -3,6 +3,7 @@ Add updated field to lookup table
 """
 
 from yoyo import step
+from datetime import datetime
 from psycopg2.extras import RealDictCursor
 
 __depends__ = {'20210529_01_LO1OU-add-primary-keys-to-discord-posts'}
@@ -16,7 +17,7 @@ def apply_step(conn):
     for artist in artists:
         cursor3 = conn.cursor()
         cursor3.execute('SELECT max(added) as max FROM posts WHERE service = %s AND "user" = %s', (artist['service'], artist['id']))
-        last_updated = cursor3.fetchone()[0]
+        last_updated = cursor3.fetchone()[0] or datetime(1970, 1, 1)
         cursor4 = conn.cursor()
         cursor4.execute('UPDATE lookup SET updated = %s WHERE service = %s AND id = %s', (last_updated, artist['service'], artist['id']))
 
