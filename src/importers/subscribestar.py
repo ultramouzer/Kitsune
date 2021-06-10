@@ -16,7 +16,7 @@ from html.parser import HTMLParser
 from flask import current_app
 
 from ..internals.database.database import get_conn
-from ..lib.artist import index_artists, is_artist_dnp
+from ..lib.artist import index_artists, is_artist_dnp, update_artist
 from ..lib.post import post_flagged, post_exists, delete_post_flags
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
@@ -124,6 +124,7 @@ def import_posts(import_id, key):
                 cursor3.execute(query, list(post_model.values()))
                 conn.commit()
 
+                update_artist('subscribestar', user_id)
                 delete_post_flags('subscribestar', user_id, post_id)
 
                 if (config.ban_url):

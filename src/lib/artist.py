@@ -93,6 +93,13 @@ def index_artists():
     cursor.close()
     return_conn(conn)
 
+def update_artist(service, artist_id):
+    conn = get_raw_conn()
+    cursor = get_cursor()
+    cursor.execute('UPDATE lookup SET updated = CURRENT_TIMESTAMP WHERE service = %s AND "user" = %s', (service, artist_id))
+    conn.commit()
+    return_conn(conn)
+
 def index_discord_channel_server(channel_data, server_data):
     conn = get_raw_conn()
     cursor = conn.cursor()

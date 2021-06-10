@@ -14,7 +14,7 @@ from flask import current_app
 from PixivUtil2.PixivModelFanbox import FanboxArtist, FanboxPost
 
 from ..internals.database.database import get_conn
-from ..lib.artist import index_artists, is_artist_dnp
+from ..lib.artist import index_artists, is_artist_dnp, update_artist
 from ..lib.post import post_flagged, post_exists, delete_post_flags
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.download import download_file, DownloaderException
@@ -172,6 +172,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                 cursor.execute(query, list(post_model.values()))
                 conn.commit()
 
+                update_artist('fanbox', user_id)
                 delete_post_flags('fanbox', user_id, post_id)
 
                 if (config.ban_url):
