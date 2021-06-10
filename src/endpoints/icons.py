@@ -1,6 +1,7 @@
 from flask import Blueprint, redirect, current_app
 
 import re
+import cssutils
 import config
 import requests
 import cloudscraper
@@ -54,9 +55,11 @@ def import_icon(service, user):
                 data = scraper.text
                 scraper.raise_for_status()
                 soup = BeautifulSoup(data, 'html.parser')
+                sheet = cssutils.css.CSSStyleSheet()
+                sheet.add("dummy_selector { %s }" % soup.select_one('.profile-picture-large.js-profile-picture').get('style'))
                 download_file(
                     join(config.download_path, 'icons', service),
-                    re.findall(r'(?:http\:|https\:)?\/\/.*\.(?:png|jpe?g|gif)', soup.find('div', class_='profile-picture js-profile-picture')['style'], re.IGNORECASE)[0],
+                    list(cssutils.getUrls(sheet))[0],
                     name = user
                 )
             else:
