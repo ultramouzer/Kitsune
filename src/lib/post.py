@@ -19,7 +19,8 @@ def delete_all_post_cache_keys():
 def post_exists(service, artist_id, post_id):
     conn = get_raw_conn()
     cursor = conn.cursor()
-    existing_posts = cursor.execute("SELECT id FROM posts WHERE id = %s AND \"user\" = %s AND service = %s", (post_id, artist_id, service,))
+    cursor.execute("SELECT id FROM posts WHERE id = %s AND \"user\" = %s AND service = %s", (post_id, artist_id, service,))
+    existing_posts = cursor.fetchall()
     cursor.close()
     return_conn(conn)
     return len(existing_posts) > 0
