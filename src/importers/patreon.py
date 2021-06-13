@@ -320,7 +320,6 @@ def import_campaign_page(url, key, import_id):
         log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
         return
     
-    conn = get_raw_conn()
     user_id = None
     for post in scraper_data['data']:
         try:
@@ -439,11 +438,12 @@ def import_campaign_page(url, key, import_id):
                 values = ','.join(data),
                 updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
             )
+            conn = get_raw_conn()
             cursor = conn.cursor()
             cursor.execute(query, list(post_model.values()))
             conn.commit()
             return_conn(conn)
-            
+
             update_artist('patreon', user_id)
             delete_post_flags('patreon', user_id, post_id)
             

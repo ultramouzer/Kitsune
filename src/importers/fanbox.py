@@ -35,7 +35,6 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
         log(import_id, f'HTTP error when contacting Fanbox API ({url}). Stopping import.', 'exception')
         return
 
-    conn = get_raw_conn()
     user_id = None
     posts_imported = []
     artists_with_posts_imported = []
@@ -168,11 +167,12 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                     values = ','.join(data),
                     updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
                 )
+                conn = get_raw_conn()
                 cursor = conn.cursor()
                 cursor.execute(query, list(post_model.values()))
                 conn.commit()
                 return_conn(conn)
-                
+
                 update_artist('fanbox', user_id)
                 delete_post_flags('fanbox', user_id, post_id)
 

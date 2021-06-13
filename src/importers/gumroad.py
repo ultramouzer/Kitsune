@@ -41,7 +41,6 @@ def import_posts(import_id, key, offset = 1):
     soup = BeautifulSoup(scraper_data['products_html'], 'html.parser')
     products = soup.find_all(class_='product-card')
 	
-    conn = get_raw_conn()
     user_id = None
     for product in products:
         post_id = product['data-permalink']
@@ -139,6 +138,7 @@ def import_posts(import_id, key, offset = 1):
             values = ','.join(data),
             updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
         )
+        conn = get_raw_conn()
         cursor = conn.cursor()
         cursor.execute(query, list(post_model.values()))
         conn.commit()

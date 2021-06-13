@@ -72,7 +72,6 @@ def process_channel(channel_id, server_id, import_id, key, before = None):
         log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
         return False
 
-    conn = get_raw_conn()
     for post in scraper_data:
         try:
             post_id = post['id']
@@ -131,11 +130,12 @@ def process_channel(channel_id, server_id, import_id, key, before = None):
                 updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
             )
 
+            conn = get_raw_conn()
             cursor = conn.cursor()
             cursor.execute(query, list(post_model.values()))
             conn.commit()        
             return_conn(conn)
-            
+
             if (config.ban_url):
                 requests.request('BAN', f"{config.ban_url}/discord/server/{post_model['server']}")
                 requests.request('BAN', f"{config.ban_url}/api/discord/channel/{post_model['channel']}")
