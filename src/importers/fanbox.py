@@ -181,7 +181,6 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                 log(import_id, f'Finished importing {post_id} for user {user_id}', to_client = False)
             except Exception as e:
                 log(import_id, f'Error importing post {post_id} from user {user_id}', 'exception')
-                conn.rollback()
                 continue
         
         next_url = scraper_data['body'].get('nextUrl')

@@ -133,7 +133,6 @@ def import_posts(import_id, key):
                 log(import_id, f"Finished importing {post_id} from user {user_id}", to_client = False)
         except Exception:
             log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception')
-            conn.rollback()
             continue
     
     log(import_id, f"Finished scanning for posts.")

@@ -452,7 +452,6 @@ def import_campaign_page(url, key, import_id):
             log(import_id, f"Finished importing {post_id} from user {user_id}", to_client = False)
         except Exception as e:
             log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception', True)
-            conn.rollback()
             continue
     
     if 'links' in scraper_data and 'next' in scraper_data['links']:

@@ -143,7 +143,6 @@ def process_channel(channel_id, server_id, import_id, key, before = None):
             log(import_id, f"Finished importing {post_id} from channel {channel_id}", to_client = False)    
         except Exception as e:
             log(import_id, f"Error while importing {post_id} from channel {channel_id}", 'exception', True)
-            conn.rollback()
             continue
     
     if(len(scraper_data) >= 50):
