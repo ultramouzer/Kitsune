@@ -13,7 +13,7 @@ from flask import current_app
 
 from PixivUtil2.PixivModelFanbox import FanboxArtist, FanboxPost
 
-from ..internals.database.database import get_conn
+from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist
 from ..lib.post import post_flagged, post_exists, delete_post_flags
 from ..internals.utils.proxy import get_proxy
@@ -35,7 +35,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
         log(import_id, f'HTTP error when contacting Fanbox API ({url}). Stopping import.', 'exception')
         return
 
-    conn = get_conn()
+    conn = get_raw_conn()
     user_id = None
     posts_imported = []
     artists_with_posts_imported = []
@@ -171,7 +171,8 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                 cursor = conn.cursor()
                 cursor.execute(query, list(post_model.values()))
                 conn.commit()
-
+                return_conn(conn)
+                
                 update_artist('fanbox', user_id)
                 delete_post_flags('fanbox', user_id, post_id)
 

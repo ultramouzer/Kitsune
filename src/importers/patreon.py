@@ -17,7 +17,7 @@ from gallery_dl import text
 
 from flask import current_app
 
-from ..internals.database.database import get_conn
+from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist
 from ..lib.post import post_flagged, post_exists, delete_post_flags
 from ..internals.utils.download import download_file, DownloaderException
@@ -320,7 +320,7 @@ def import_campaign_page(url, key, import_id):
         log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
         return
     
-    conn = get_conn()
+    conn = get_raw_conn()
     user_id = None
     for post in scraper_data['data']:
         try:
@@ -442,7 +442,8 @@ def import_campaign_page(url, key, import_id):
             cursor = conn.cursor()
             cursor.execute(query, list(post_model.values()))
             conn.commit()
-
+            return_conn(conn)
+            
             update_artist('patreon', user_id)
             delete_post_flags('patreon', user_id, post_id)
             
