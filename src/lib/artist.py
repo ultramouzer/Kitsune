@@ -33,8 +33,11 @@ def delete_all_artist_keys():
     delete_keys(keys)
 
 def is_artist_dnp(service, artist_id):
-    cursor = get_cursor()
+    conn = get_raw_conn()
+    cursor = conn.cursor()
     cursor.execute("SELECT * FROM dnp WHERE id = %s AND service = %s", (artist_id, service,))
+    cursor.close()
+    return_conn(conn)
     return len(cursor.fetchall()) > 0
 
 def index_artists():
