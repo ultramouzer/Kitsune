@@ -36,9 +36,10 @@ def is_artist_dnp(service, artist_id):
     conn = get_raw_conn()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM dnp WHERE id = %s AND service = %s", (artist_id, service,))
+    results = cursor.fetchall()
     cursor.close()
     return_conn(conn)
-    return len(cursor.fetchall()) > 0
+    return len(results) > 0
 
 def index_artists():
     conn = get_raw_conn()
