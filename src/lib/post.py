@@ -17,33 +17,70 @@ def delete_all_post_cache_keys():
     delete_keys(keys)
 
 def post_exists(service, artist_id, post_id):
-    conn = get_raw_conn()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id FROM posts WHERE id = %s AND \"user\" = %s AND service = %s", (post_id, artist_id, service,))
-    existing_posts = cursor.fetchall()
-    cursor.close()
-    return_conn(conn)
+    tries = 10
+    for i in range(tries):
+        try:
+            conn = get_raw_conn()
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM posts WHERE id = %s AND \"user\" = %s AND service = %s", (post_id, artist_id, service,))
+            existing_posts = cursor.fetchall()
+            cursor.close()
+            return_conn(conn)
+        except:
+            if i < tries - 1:
+                continue
+            else:
+                raise
+        break
+
     return len(existing_posts) > 0
 
 def post_flagged(service, artist_id, post_id):
-    conn = get_raw_conn()
-    cursor = conn.cursor()
-    cursor.execute('SELECT id FROM booru_flags WHERE service = %s AND "user" = %s AND id = %s', (service, artist_id, post_id))
-    existing_flags = cursor.fetchall()
-    cursor.close()
-    return_conn(conn)
+    tries = 10
+    for i in range(tries):
+        try:
+            conn = get_raw_conn()
+            cursor = conn.cursor()
+            cursor.execute('SELECT id FROM booru_flags WHERE service = %s AND "user" = %s AND id = %s', (service, artist_id, post_id))
+            existing_flags = cursor.fetchall()
+            cursor.close()
+            return_conn(conn)
+        except:
+            if i < tries - 1:
+                continue
+            else:
+                raise
+        break
     return len(existing_flags) > 0
 
 def discord_post_exists(server_id, channel_id, post_id):
-    conn = get_raw_conn()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id FROM discord_posts WHERE id = %s AND server = %s AND channel = %s", (post_id, server_id, channel_id))
+    tries = 10
+    for i in range(tries):
+        try:
+            conn = get_raw_conn()
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM discord_posts WHERE id = %s AND server = %s AND channel = %s", (post_id, server_id, channel_id))
+        except:
+            if i < tries - 1:
+                continue
+            else:
+                raise
+        break
     return len(cursor.fetchall()) > 0
 
 def delete_post_flags(service, artist_id, post_id):
-    conn = get_raw_conn()
-    cursor = conn.cursor()
-    cursor.execute('DELETE FROM booru_flags WHERE service = %s AND "user" = %s AND id = %s', (service, artist_id, post_id))
-    cursor.close()
-    conn.commit()
-    return_conn(conn)
+    tries = 10
+    for i in range(tries):
+        try:
+            conn = get_raw_conn()
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM booru_flags WHERE service = %s AND "user" = %s AND id = %s', (service, artist_id, post_id))
+            cursor.close()
+            conn.commit()
+            return_conn(conn)
+        except:
+            if i < tries - 1:
+                continue
+            else:
+                raise
+        break

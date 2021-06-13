@@ -119,11 +119,21 @@ def import_posts(import_id, key):
                     values = ','.join(data),
                     updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
                 )
-                conn = get_raw_conn()
-                cursor3 = conn.cursor()
-                cursor3.execute(query, list(post_model.values()))
-                conn.commit()
-                return_conn(conn)
+
+                tries = 10
+                for i in range(tries):
+                    try:
+                        conn = get_raw_conn()
+                        cursor3 = conn.cursor()
+                        cursor3.execute(query, list(post_model.values()))
+                        conn.commit()
+                        return_conn(conn)
+                    except:
+                        if i < tries - 1:
+                            continue
+                        else:
+                            raise
+                    break
 
                 update_artist('subscribestar', user_id)
                 delete_post_flags('subscribestar', user_id, post_id)
