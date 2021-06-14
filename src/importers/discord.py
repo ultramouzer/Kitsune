@@ -130,20 +130,11 @@ def process_channel(channel_id, server_id, import_id, key, before = None):
                 updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
             )
 
-            tries = 10
-            for i in range(tries):
-                try:
-                    conn = get_raw_conn()
-                    cursor = conn.cursor()
-                    cursor.execute(query, list(post_model.values()))
-                    conn.commit()
-                    return_conn(conn)
-                except:
-                    if i < tries - 1:
-                        continue
-                    else:
-                        raise
-                break
+            conn = get_raw_conn()
+            cursor = conn.cursor()
+            cursor.execute(query, list(post_model.values()))
+            conn.commit()        
+            return_conn(conn)
 
             if (config.ban_url):
                 requests.request('BAN', f"{config.ban_url}/discord/server/{post_model['server']}")

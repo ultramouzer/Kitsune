@@ -33,21 +33,12 @@ def delete_all_artist_keys():
     delete_keys(keys)
 
 def is_artist_dnp(service, artist_id):
-    tries = 10
-    for i in range(tries):
-        try:
-            conn = get_raw_conn()
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM dnp WHERE id = %s AND service = %s", (artist_id, service,))
-            results = cursor.fetchall()
-            cursor.close()
-            return_conn(conn)
-        except:
-            if i < tries - 1:
-                continue
-            else:
-                raise
-        break
+    conn = get_raw_conn()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM dnp WHERE id = %s AND service = %s", (artist_id, service,))
+    results = cursor.fetchall()
+    cursor.close()
+    return_conn(conn)
     return len(results) > 0
 
 def index_artists():
@@ -107,20 +98,11 @@ def index_artists():
     return_conn(conn)
 
 def update_artist(service, artist_id):
-    tries = 10
-    for i in range(tries):
-        try:
-            conn = get_raw_conn()
-            cursor = get_cursor()
-            cursor.execute('UPDATE lookup SET updated = CURRENT_TIMESTAMP WHERE service = %s AND id = %s', (service, artist_id))
-            conn.commit()
-            return_conn(conn)
-        except:
-            if i < tries - 1:
-                continue
-            else:
-                raise
-        break
+    conn = get_raw_conn()
+    cursor = get_cursor()
+    cursor.execute('UPDATE lookup SET updated = CURRENT_TIMESTAMP WHERE service = %s AND id = %s', (service, artist_id))
+    conn.commit()
+    return_conn(conn)
 
 def index_discord_channel_server(channel_data, server_data):
     conn = get_raw_conn()

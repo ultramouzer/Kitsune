@@ -438,21 +438,11 @@ def import_campaign_page(url, key, import_id):
                 values = ','.join(data),
                 updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
             )
-            
-            tries = 10
-            for i in range(tries):
-                try:
-                    conn = get_raw_conn()
-                    cursor = conn.cursor()
-                    cursor.execute(query, list(post_model.values()))
-                    conn.commit()
-                    return_conn(conn)
-                except:
-                    if i < tries - 1:
-                        continue
-                    else:
-                        raise
-                break
+            conn = get_raw_conn()
+            cursor = conn.cursor()
+            cursor.execute(query, list(post_model.values()))
+            conn.commit()
+            return_conn(conn)
 
             update_artist('patreon', user_id)
             delete_post_flags('patreon', user_id, post_id)
