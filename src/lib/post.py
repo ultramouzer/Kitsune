@@ -38,7 +38,10 @@ def discord_post_exists(server_id, channel_id, post_id):
     conn = get_raw_conn()
     cursor = conn.cursor()
     cursor.execute("SELECT id FROM discord_posts WHERE id = %s AND server = %s AND channel = %s", (post_id, server_id, channel_id))
-    return len(cursor.fetchall()) > 0
+    existing_posts = cursor.fetchall()
+    cursor.close()
+    return_conn(conn)
+    return len(existing_posts) > 0
 
 def delete_post_flags(service, artist_id, post_id):
     conn = get_raw_conn()
