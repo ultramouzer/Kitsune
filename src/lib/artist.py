@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 import cloudscraper
 import requests
 import logging
+import config
 
 from ..internals.utils.proxy import get_proxy
 from ..internals.cache.redis import delete_keys, delete_keys_pattern
@@ -91,6 +92,9 @@ def index_artists():
                 }
 
             write_model_to_db(conn, cursor, model)
+
+            if (config.ban_url):
+                requests.request('BAN', f"{config.ban_url}/{post['service']}/user/" + post['user'])
         except Exception:
             logging.exception(f"Error while indexing user {post['user']}")
 
