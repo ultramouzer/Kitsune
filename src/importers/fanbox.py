@@ -31,6 +31,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
             proxies=get_proxy()
         )
         scraper_data = scraper.json()
+        scraper.raise_for_status()
     except requests.HTTPError:
         log(import_id, f'HTTP error when contacting Fanbox API ({url}). Stopping import.', 'exception')
         return
