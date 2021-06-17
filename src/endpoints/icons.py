@@ -20,7 +20,7 @@ def import_icon(service, user):
     if not exists(join(config.download_path, 'icons', service, user)):
         try:
             if service == 'patreon':
-                scraper = cloudscraper.create_scraper().get('https://www.patreon.com/api/user/' + user, proxies=get_proxy())
+                scraper = cloudscraper.create_scraper().get('https://api.patreon.com/user/' + user, proxies=get_proxy())
                 data = scraper.json()
                 scraper.raise_for_status()
                 download_file(

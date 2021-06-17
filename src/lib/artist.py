@@ -52,7 +52,7 @@ def index_artists():
         try:
             if post["service"] == 'patreon':
                 scraper = cloudscraper.create_scraper()
-                user = scraper.get('https://www.patreon.com/api/user/' + post["user"], proxies=get_proxy()).json()
+                user = scraper.get('https://api.patreon.com/user/' + post["user"], proxies=get_proxy()).json()
                 model = {
                     "id": post["user"],
                     "name": user["data"]["attributes"]["vanity"] or user["data"]["attributes"]["full_name"],
