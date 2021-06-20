@@ -71,7 +71,7 @@ def index_artists():
                 soup = BeautifulSoup(resp, 'html.parser')
                 model = {
                     "id": post["user"],
-                    "name": soup.find('h2', class_='creator-profile-card__name js-creator-name').string.replace("\n", ""),
+                    "name": soup.find('strong', class_='creator-profile-card__name').string.replace("\n", ""),
                     "service": "gumroad"
                 }
             elif post["service"] == 'subscribestar':

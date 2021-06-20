@@ -56,7 +56,7 @@ def import_icon(service, user):
                 scraper.raise_for_status()
                 soup = BeautifulSoup(data, 'html.parser')
                 sheet = cssutils.css.CSSStyleSheet()
-                sheet.add("dummy_selector { %s }" % soup.select_one('.profile-picture-large.js-profile-picture').get('style'))
+                sheet.add("dummy_selector { %s }" % soup.select_one('.profile-picture-medium.js-profile-picture').get('style'))
                 download_file(
                     join(config.download_path, 'icons', service),
                     list(cssutils.getUrls(sheet))[0],
