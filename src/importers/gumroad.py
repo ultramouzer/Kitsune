@@ -117,7 +117,7 @@ def import_posts(import_id, key, offset = 1):
         for _file in download_data['files']:
             filename, _ = download_file(
                 join(config.download_path, attachments_directory),
-                'https://gumroad.com' + download_data['download_info'][_file['id']]['download_url'],
+                'https://gumroad.com' + _file['download_url'],
                 name = f'{_file["file_name"]}.{_file["extension"].lower()}',
                 cookies = { '_gumroad_app_session': key }
             )
