@@ -40,23 +40,24 @@ def import_posts(import_id, key, offset = 1):
 
     soup = BeautifulSoup(scraper_data['products_html'], 'html.parser')
     products = soup.find_all(class_='product-card')
-	
+
+    users = {}
+    for user_info_list in scraper_data['creator_counts'].keys():
+        parsed_user_info_list = json.loads(user_info_list)
+        users[parsed_user_info_list[1]] = parsed_user_info_list[2]
+
     user_id = None
     for product in products:
         post_id = product['data-permalink']
         purchase_download_url = product.find(class_='js-product')['data-purchase-download-url']
         title = product.select_one('.description-container h1 strong').string
 
-        user_id_element = product.find(class_='preview-container')['data-asset-previews']
-        user_id_nums = re.findall(r"\d+", user_id_element)
-        user_id = get_value(list(filter(lambda el: len(el) == 13, user_id_nums)), 0)
-        if user_id is None:
-            user_name_element = get_value(product.find_all('a', {'class':'js-creator-profile-link'}), 0)
-            if user_name_element is None:
-                log(import_id, f'Skipping post {post_id}. Could not find user information.')
-                continue
-            else:
-                user_id = user_name_element.text.strip()
+        user_name_element = get_value(product.find_all('a', {'class':'js-creator-profile-link'}), 0)
+        if user_name_element is None:
+            log(import_id, f'Skipping post {post_id}. Could not find user information.')
+            continue
+        else:
+            user_id = users[user_name_element.text]
 
         file_directory = f"files/gumroad/{user_id}/{post_id}"
         attachments_directory = f"attachments/gumroad/{user_id}/{post_id}"
