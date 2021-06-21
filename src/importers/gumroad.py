@@ -57,7 +57,7 @@ def import_posts(import_id, key, offset = 1):
             log(import_id, f'Skipping post {post_id}. Could not find user information.')
             continue
         else:
-            user_id = users[user_name_element.text]
+            user_id = users[user_name_element.text.strip()]
 
         file_directory = f"files/gumroad/{user_id}/{post_id}"
         attachments_directory = f"attachments/gumroad/{user_id}/{post_id}"
