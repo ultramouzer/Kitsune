@@ -126,7 +126,7 @@ def import_posts(import_id, key):
                 return_conn(conn)
 
                 update_artist('subscribestar', user_id)
-                delete_post_flags('subscribestar', user_id, post_id)
+                delete_post_flags('subscribestar', user_id, str(post_id))
 
                 if (config.ban_url):
                     requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
