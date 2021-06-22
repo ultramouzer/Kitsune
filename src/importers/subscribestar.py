@@ -80,7 +80,7 @@ def import_posts(import_id, key):
                     'embed': {},
                     'shared_file': False,
                     'added': datetime.datetime.now(),
-                    'published': parse_date(post['date']),
+                    'published': post['date'],
                     'edited': None,
                     'file': {},
                     'attachments': []
