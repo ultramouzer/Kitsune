@@ -5,7 +5,6 @@ from os import makedirs
 
 from ..internals.cache.redis import delete_keys
 from ..internals.database.database import get_cursor, get_conn, return_conn, get_raw_conn
-from ..internals.utils.logger import log
 from shutil import rmtree
 from os.path import join, exists
 import config
