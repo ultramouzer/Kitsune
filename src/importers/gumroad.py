@@ -37,7 +37,8 @@ def import_posts(import_id, key, offset = 1):
 
     if (scraper_data['total'] > 100000):
         log(import_id, f"Can't log in; is your session key correct?")
-
+        return
+    
     soup = BeautifulSoup(scraper_data['products_html'], 'html.parser')
     products = soup.find_all(class_='product-card')
 
