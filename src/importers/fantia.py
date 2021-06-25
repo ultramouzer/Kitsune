@@ -136,6 +136,14 @@ def import_timeline(import_id, key, page = 1):
                 'attachments': []
             }
 
+            paid_contents = []
+            for content in post_data['post']['post_contents']:
+                if content['plan']['price'] > 0 and content['visible_status'] == 'visible':
+                    paid_contents.append(content)
+            if (len(paid_contents) == 0):
+                log(import_id, f'Skipping post {post_id} from user {user_id} because no paid contents are unlocked', to_client = True)
+                continue
+
             if post_data['post']['thumb']:
                 filename, _ = download_file(
                     join(config.download_path, file_directory),
