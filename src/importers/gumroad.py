@@ -126,7 +126,8 @@ def import_posts(import_id, key, offset = 1):
                     join(config.download_path, attachments_directory),
                     'https://gumroad.com' + _file['download_url'],
                     name = f'{_file["file_name"]}.{_file["extension"].lower()}',
-                    cookies = { '_gumroad_app_session': key }
+                    cookies = { '_gumroad_app_session': key },
+                    proxies=get_proxy()
                 )
                 post_model['attachments'].append({
                     'name': filename,
