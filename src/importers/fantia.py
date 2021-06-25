@@ -189,7 +189,7 @@ def import_timeline(import_id, key, page = 1):
                             })
                 else:
                     log(import_id, f'Skipping content {content["id"]} from post {post_id}; unsupported type "{content["category"]}"', to_client = True)
-                    log(import_id, json.dumps(content))
+                    log(import_id, json.dumps(content), to_client=False)
             
             post_model['embed'] = json.dumps(post_model['embed'])
             post_model['file'] = json.dumps(post_model['file'])
