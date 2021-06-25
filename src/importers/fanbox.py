@@ -144,8 +144,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                                 join(config.download_path, file_directory),
                                 parsed_post.embeddedFiles[i],
                                 cookies={ 'FANBOXSESSID': key },
-                                headers={ 'origin': 'https://fanbox.cc' },
-                                proxies=get_proxy()
+                                headers={ 'origin': 'https://fanbox.cc' }
                             )
                             post_model['file']['name'] = filename
                             post_model['file']['path'] = f'/{file_directory}/{filename}'
@@ -154,8 +153,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                                 join(config.download_path, attachments_directory),
                                 parsed_post.embeddedFiles[i],
                                 cookies={ 'FANBOXSESSID': key },
-                                headers={ 'origin': 'https://fanbox.cc' },
-                                proxies=get_proxy()
+                                headers={ 'origin': 'https://fanbox.cc' }
                             )
                             post_model['attachments'].append({
                                 'name': filename,
