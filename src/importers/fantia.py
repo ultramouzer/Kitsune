@@ -34,6 +34,9 @@ def enable_adult_mode(key, import_id):
     scraper.raise_for_status()
     soup = BeautifulSoup(scraper_data, 'html.parser')
 
+    if (soup.select_one('.edit_user input#user_rating') is None):
+        log(import_id, f"Error while enabling adult mode; key is probably invalid")
+        
     if (soup.select_one('.edit_user input#user_rating').get('checked') is None):
         authenticity_token = soup.select_one('.edit_user input[name=authenticity_token]')['value']
         create_scrapper_session(useCloudscraper=False).post(
