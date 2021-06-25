@@ -62,8 +62,8 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                     log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
                     continue
 
-                if post_flagged('patreon', user_id, post_id):
-                    backup_path = move_to_backup('patreon', user_id, post_id)
+                if post_flagged('fanbox', user_id, post_id):
+                    backup_path = move_to_backup('fanbox', user_id, post_id)
 
                 log(import_id, f"Starting import: {post_id} from user {user_id}")
 

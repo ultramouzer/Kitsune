@@ -70,7 +70,7 @@ def import_posts(import_id, key):
                     continue
 
                 if post_flagged('subscribestar', user_id, str(post_id)):
-                    backup_path = move_to_backup('patreon', user_id, post_id)
+                    backup_path = move_to_backup('subscribestar', user_id, str(post_id))
 
                 log(import_id, f"Starting import: {post_id}")
 
@@ -142,7 +142,7 @@ def import_posts(import_id, key):
             log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception')
 
             if backup_path is not None:
-                restore_from_backup('fanbox', user_id, post_id, backup_path)
+                restore_from_backup('subscribestar', user_id, post_id, backup_path)
             continue
     
     log(import_id, f"Finished scanning for posts.")
