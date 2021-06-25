@@ -62,6 +62,18 @@ def import_icon(service, user):
                     list(cssutils.getUrls(sheet))[0],
                     name = user
                 )
+            elif service == 'fantia':
+                scraper = requests.get('https://fantia.jp/api/v1/fanclubs/' + user, proxies=get_proxy())
+                data = scraper.json()
+                scraper.raise_for_status()
+                if data['fanclub']['icon']:
+                    download_file(
+                        join(config.download_path, 'icons', service),
+                        data['fanclub']['icon']['main'],
+                        name = user
+                    )
+                else:
+                    raise IconsException()
             else:
                 with open(join(config.download_path, 'icons', service, user), 'w') as _: 
                     pass

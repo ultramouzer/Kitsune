@@ -16,6 +16,7 @@ from ..importers import fanbox
 from ..importers import subscribestar
 from ..importers import gumroad
 from ..importers import discord
+from ..importers import fantia
 
 api = Blueprint('api', __name__)
 
@@ -46,6 +47,9 @@ def import_api():
         args = (key,)
     elif service == 'gumroad':
         target = gumroad.import_posts
+        args = (key,)
+    elif service == 'fantia':
+        target = fantia.import_posts
         args = (key,)
     elif service == 'discord':
         target = discord.import_posts
