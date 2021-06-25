@@ -108,8 +108,6 @@ def import_timeline(import_id, key, page = 1):
             if post_flagged('fantia', user_id, post_id):
                 backup_path = move_to_backup('fantia', user_id, post_id)
 
-            log(import_id, f"Starting import: {post_id} from user {user_id}")
-
             try:
                 post_scraper = create_scrapper_session(useCloudscraper=False).get(
                     f"https://fantia.jp/api/v1/posts/{post_id}",
@@ -143,6 +141,8 @@ def import_timeline(import_id, key, page = 1):
             if (len(paid_contents) == 0):
                 log(import_id, f'Skipping post {post_id} from user {user_id} because no paid contents are unlocked', to_client = True)
                 continue
+                
+            log(import_id, f"Starting import: {post_id} from user {user_id}")
 
             if post_data['post']['thumb']:
                 filename, _ = download_file(
