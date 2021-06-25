@@ -82,6 +82,13 @@ def index_artists():
                     "name": soup.find('div', class_='profile_main_info-name').string,
                     "service": "subscribestar"
                 }
+            elif post["service"] == 'fantia':
+                user = requests.get('https://fantia.jp/api/v1/fanclubs/' + post["user"], proxies=get_proxy()).json()
+                model = {
+                    "id": post["user"],
+                    "name": user["fanclub"]["creator_name"],
+                    "service": "fantia"
+                }
             elif post["service"] == 'dlsite':
                 resp = requests.get('https://www.dlsite.com/eng/circle/profile/=/maker_id/' + post["user"], proxies=get_proxy()).text
                 soup = BeautifulSoup(resp, 'html.parser')

@@ -54,6 +54,18 @@ def import_banner(service, user):
                     )
                 else:
                     raise BannerException()
+            elif service == 'fantia':
+                scraper = requests.get('https://fantia.jp/api/v1/fanclubs/' + user, proxies=get_proxy())
+                data = scraper.json()
+                scraper.raise_for_status()
+                if data['fanclub']['cover']:
+                    download_file(
+                        join(config.download_path, 'banners', service),
+                        data['fanclub']['cover']['main'],
+                        name = user
+                    )
+                else:
+                    raise BannerException()
             else:
                 with open(join(config.download_path, 'banners', service, user), 'w') as _:
                     pass
