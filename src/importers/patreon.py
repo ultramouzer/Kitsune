@@ -371,7 +371,8 @@ def import_campaign_page(url, key, import_id):
                     filename, _ = download_file(
                         join(config.download_path, 'inline'),
                         download_url,
-                        name = fn
+                        name = fn,
+                        proxies=get_proxy()
                     )
                     post_model['content'] = post_model['content'].replace(download_url, f"/inline/{filename}")
 
@@ -384,7 +385,8 @@ def import_campaign_page(url, key, import_id):
                 filename, _ = download_file(
                     join(config.download_path, file_directory),
                     post['attributes']['post_file']['url'],
-                    name = post['attributes']['post_file']['name']
+                    name = post['attributes']['post_file']['name'],
+                    proxies=get_proxy()
                 )
                 post_model['file']['name'] = post['attributes']['post_file']['name']
                 post_model['file']['path'] = f'/{file_directory}/{filename}'
@@ -393,7 +395,8 @@ def import_campaign_page(url, key, import_id):
                 filename, _ = download_file(
                     join(config.download_path, attachments_directory),
                     f"https://www.patreon.com/file?h={post_id}&i={attachment['id']}",
-                    cookies = { 'session_id': key }
+                    cookies = { 'session_id': key },
+                    proxies=get_proxy()
                 )
                 post_model['attachments'].append({
                     'name': filename,
@@ -408,7 +411,8 @@ def import_campaign_page(url, key, import_id):
                         filename, _ = download_file(
                             join(config.download_path, attachments_directory),
                             media['attributes']['download_url'],
-                            name = media['attributes']['file_name']
+                            name = media['attributes']['file_name'],
+                            proxies=get_proxy()
                         )
                         post_model['attachments'].append({
                             'name': filename,
@@ -422,7 +426,8 @@ def import_campaign_page(url, key, import_id):
                     filename, _ = download_file(
                         join(config.download_path, attachments_directory),
                         media['attributes']['download_url'],
-                        name = media['attributes']['file_name']
+                        name = media['attributes']['file_name'],
+                        proxies=get_proxy()
                     )
                     post_model['attachments'].append({
                         'name': filename,
