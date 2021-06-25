@@ -127,7 +127,7 @@ def import_timeline(import_id, key, page = 1):
                 '"user"': user_id,
                 'service': 'fantia',
                 'title': post_data['post']['title'],
-                'content': post_data['post']['comment'],
+                'content': post_data['post']['comment'] or '',
                 'embed': {},
                 'shared_file': False,
                 'added': datetime.datetime.now(),
