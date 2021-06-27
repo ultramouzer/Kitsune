@@ -20,4 +20,5 @@ def delete_keys(keys):
 def delete_keys_pattern(pattern):
     redis = get_conn()
     keys = redis.keys(pattern)
-    redis.delete(*keys)
+    if (len(keys)):
+        redis.delete(*keys)

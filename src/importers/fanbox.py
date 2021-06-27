@@ -14,7 +14,7 @@ from flask import current_app
 from PixivUtil2.PixivModelFanbox import FanboxArtist, FanboxPost
 
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
-from ..lib.artist import index_artists, is_artist_dnp, update_artist
+from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.download import download_file, DownloaderException
@@ -184,6 +184,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
 
                 if (config.ban_url):
                     requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
+                delete_artist_cache_keys('fanbox', user_id)
 
                 if backup_path is not None:
                     delete_backup(backup_path)
