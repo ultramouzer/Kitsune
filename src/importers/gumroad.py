@@ -108,8 +108,7 @@ def import_posts(import_id, key, offset = 1):
                 download_data = json.loads(soup3.select_one('div[data-react-class="DownloadPage/FileList"]')['data-react-props'])
             except:
                 download_data = {
-                  "files": [],
-                  "download_info": {}
+                  "content_items": []
                 }
 
             thumbnail = thumbnail1 or thumbnail2 or thumbnail3
@@ -121,17 +120,22 @@ def import_posts(import_id, key, offset = 1):
                 post_model['file']['name'] = filename
                 post_model['file']['path'] = f'/{file_directory}/{filename}'
 
-            for _file in download_data['files']:
-                filename, _ = download_file(
-                    join(config.download_path, attachments_directory),
-                    'https://gumroad.com' + _file['download_url'],
-                    name = f'{_file["file_name"]}.{_file["extension"].lower()}',
-                    cookies = { '_gumroad_app_session': key }
-                )
-                post_model['attachments'].append({
-                    'name': filename,
-                    'path': f'/{attachments_directory}/{filename}'
-                })
+            for _file in download_data['content_items']:
+                if (_file['type'] == 'file'):
+                    filename, _ = download_file(
+                        join(config.download_path, attachments_directory),
+                        'https://gumroad.com' + _file['download_url'],
+                        name = f'{_file["file_name"]}.{_file["extension"].lower()}',
+                        cookies = { '_gumroad_app_session': key }
+                    )
+                    post_model['attachments'].append({
+                        'name': filename,
+                        'path': f'/{attachments_directory}/{filename}'
+                    })
+                else:
+                    log(import_id, f"Unsupported content found in product {post_id}. You should tell Shino about this.", to_client=True)
+                    log(import_id, json.dumps(_file), to_client=False)
+                    continue
 
             post_model['embed'] = json.dumps(post_model['embed'])
             post_model['file'] = json.dumps(post_model['file'])
