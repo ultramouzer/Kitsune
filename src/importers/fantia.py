@@ -17,13 +17,10 @@ from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.scrapper import create_scrapper_session
 from ..internals.utils.proxy import get_proxy
 
-
-jar = requests.cookies.RequestsCookieJar()
-
 # In the future, if the timeline API proves itself to be unreliable, we should probably move to scanning fanclubs individually.
 # https://fantia.jp/api/v1/me/fanclubs',
 
-def enable_adult_mode(key, import_id):
+def enable_adult_mode(key, import_id, jar):
     # log(import_id, f"No active Fantia subscriptions or invalid key. No posts will be imported.", to_client = True)
     scraper = create_scrapper_session(useCloudscraper=False).get(
         'https://fantia.jp/mypage/account/edit',
@@ -53,7 +50,7 @@ def enable_adult_mode(key, import_id):
         return True
     return False
     
-def disable_adult_mode(key, import_id):
+def disable_adult_mode(key, import_id, jar):
     scraper = create_scrapper_session(useCloudscraper=False).get(
         'https://fantia.jp/mypage/account/edit',
         cookies=jar,
@@ -75,7 +72,7 @@ def disable_adult_mode(key, import_id):
         }
     ).raise_for_status()
 
-def import_timeline(import_id, key, page = 1):
+def import_timeline(import_id, key, jar, page = 1):
     try:
         scraper = create_scrapper_session(useCloudscraper=False).get(
             f"https://fantia.jp/api/v1/me/timelines/posts?page={page}&per=24",
@@ -241,15 +238,16 @@ def import_timeline(import_id, key, page = 1):
     
     if (scraper_data['has_next']):
         log(import_id, f'Finished processing page. Processing next page.')
-        import_timeline(import_id, key, page = page + 1)
+        import_timeline(import_id, key, jar, page = page + 1)
 
 def import_posts(import_id, key):
+    jar = requests.cookies.RequestsCookieJar()
     jar.set('_session_id', key)
     
-    mode_switched = enable_adult_mode(key, import_id)
-    import_timeline(import_id, key)
+    mode_switched = enable_adult_mode(key, import_id, jar)
+    import_timeline(import_id, key, jar)
     if (mode_switched):
-        disable_adult_mode(key, import_id)
+        disable_adult_mode(key, import_id, jar)
 
     log(import_id, f"Finished scanning for posts.")
     index_artists()
