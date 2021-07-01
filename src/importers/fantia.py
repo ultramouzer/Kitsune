@@ -20,7 +20,7 @@ from ..internals.utils.proxy import get_proxy
 # In the future, if the timeline API proves itself to be unreliable, we should probably move to scanning fanclubs individually.
 # https://fantia.jp/api/v1/me/fanclubs',
 
-def enable_adult_mode(key, import_id, jar):
+def enable_adult_mode(import_id, jar):
     # log(import_id, f"No active Fantia subscriptions or invalid key. No posts will be imported.", to_client = True)
     scraper = create_scrapper_session(useCloudscraper=False).get(
         'https://fantia.jp/mypage/account/edit',
@@ -50,7 +50,7 @@ def enable_adult_mode(key, import_id, jar):
         return True
     return False
     
-def disable_adult_mode(key, import_id, jar):
+def disable_adult_mode(import_id, jar):
     scraper = create_scrapper_session(useCloudscraper=False).get(
         'https://fantia.jp/mypage/account/edit',
         cookies=jar,
@@ -72,25 +72,26 @@ def disable_adult_mode(key, import_id, jar):
         }
     ).raise_for_status()
 
-def import_timeline(import_id, key, jar, page = 1):
+def import_fanclub(fanclub_id, import_id, jar, page = 1):
     try:
         scraper = create_scrapper_session(useCloudscraper=False).get(
-            f"https://fantia.jp/api/v1/me/timelines/posts?page={page}&per=24",
+            f"https://fantia.jp/fanclubs/{fanclub_id}/posts?page={page}",
             cookies=jar,
             proxies=get_proxy()
         )
-        scraper_data = scraper.json()
+        scraper_data = scraper.text
         scraper.raise_for_status()
     except requests.HTTPError as exc:
         log(import_id, f'Status code {exc.response.status_code} when contacting Fantia API.', 'exception')
         return
     
+    scraped_posts = BeautifulSoup(scraper_data, 'html.parser').select('div.post')
     user_id = None
-    for post in scraper_data['posts']:
+    for post in scraped_posts:
         backup_path = None
         try:
-            user_id = str(post['fanclub']['id'])
-            post_id = str(post['id'])
+            user_id = fanclub_id
+            post_id = post.select_one('a.link-block')['href'].lstrip('/posts/')
             file_directory = f"files/fantia/{user_id}/{post_id}"
             attachments_directory = f"attachments/fantia/{user_id}/{post_id}"
 
@@ -236,18 +237,36 @@ def import_timeline(import_id, key, jar, page = 1):
                 restore_from_backup('fantia', user_id, post_id, backup_path)
             continue
     
-    if (scraper_data['has_next']):
+    if (scraped_posts):
         log(import_id, f'Finished processing page. Processing next page.')
-        import_timeline(import_id, key, jar, page = page + 1)
+        import_fanclub(fanclub_id, import_id, jar, page = page + 1)
+
+def get_paid_fanclubs(import_id, jar):
+    scraper = create_scrapper_session(useCloudscraper=False).get(
+        'https://fantia.jp/mypage/users/plans?type=not_free',
+        cookies=jar,
+        proxies=get_proxy()
+    )
+    scraper_data = scraper.text
+    scraper.raise_for_status()
+    soup = BeautifulSoup(scraper_data, 'html.parser')
+    return set(fanclub_link["href"].lstrip("/fanclubs/") for fanclub_link in soup.select("div.mb-5-children > div:nth-of-type(1) a[href^=\"/fanclubs\"]"))
 
 def import_posts(import_id, key):
     jar = requests.cookies.RequestsCookieJar()
     jar.set('_session_id', key)
     
-    mode_switched = enable_adult_mode(key, import_id, jar)
-    import_timeline(import_id, key, jar)
+    mode_switched = enable_adult_mode(import_id, jar)
+    fanclub_ids = get_paid_fanclubs(import_id, jar)
+    if len(fanclub_ids) > 0:
+        for fanclub_id in fanclub_ids:
+            log(import_id, f'Importing fanclub {fanclub_id}', to_client=True)
+            import_fanclub(fanclub_id, import_id, jar)
+    else:
+        log(import_id, f"No paid subscriptions found. No posts will be imported.", to_client = True)
+    
     if (mode_switched):
-        disable_adult_mode(key, import_id, jar)
+        disable_adult_mode(import_id, jar)
 
     log(import_id, f"Finished scanning for posts.")
     index_artists()
