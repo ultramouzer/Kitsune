@@ -19,7 +19,7 @@ from flask import current_app
 
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys
-from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup
+from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.logger import log
@@ -212,6 +212,37 @@ bills_url = 'https://www.patreon.com/api/bills' + '?timezone=UTC' + '&include=' 
     'needs_nsfw_auth'
 ]) + '&json-api-use-default-includes=false&json-api-version=1.0&filter[due_date_year]='
 
+comments_url = 'https://www.patreon.com/api/posts/{}/comments' + '?include=' + ','.join([
+        'commenter.campaign.null',
+        'commenter.flairs.campaign',
+        'parent',
+        'post',
+        'first_reply.commenter.campaign.null',
+        'first_reply.parent',
+        'first_reply.post',
+        'exclude_replies',
+        'on_behalf_of_campaign.null',
+        'first_reply.on_behalf_of_campaign.null'
+    ]) + '&fields[comment]=' + ','.join([
+        'body',
+        'created',
+        'deleted_at',
+        'is_by_patron',
+        'is_by_creator',
+        'vote_sum',
+        'current_user_vote',
+        'reply_count',
+    ]) + '&fields[post]=' + ','.join([
+        'comment_count'
+    ]) + '&fields[user]=' + ','.join([
+        'image_url',
+        'full_name',
+        'url'
+    ]) + '&fields[flair]=' + ','.join([
+        'image_tiny_url',
+        'name' 
+    ]) + '&page[count]=10&sort=-created&json-api-use-default-includes=false&json-api-version=1.0'
+
 #get ids of campaigns with active pledge
 def get_active_campaign_ids(key, import_id):
     try:
@@ -308,6 +339,81 @@ def get_campaign_ids(key, import_id):
 
     return list(campaign_ids)
 
+def import_comment(comment, user_id, import_id):
+    post_id = comment['relationships']['post']['data']['id']
+    commenter_id = comment['relationships']['commenter']['data']['id']
+    comment_id = comment['id']
+    
+    if comment_exists('patreon', commenter_id, comment_id):
+        log(import_id, f"Skipping comment {comment_id} from post {post_id} because already exists", to_client = False)
+        return
+
+    if (comment['attributes']['deleted_at']):
+        log(import_id, f"Skipping comment {comment_id} from post {post_id} because it is deleted", to_client = False)
+        return
+    
+    log(import_id, f"Starting comment import: {comment_id} from post {post_id}", to_client = False)
+
+    post_model = {
+        'id': comment_id,
+        'post_id': post_id,
+        'parent_id': comment['relationships']['parent']['data']['id'] if comment['relationships']['parent']['data'] else None,
+        'commenter': commenter_id,
+        'service': 'patreon',
+        'content': comment['attributes']['body'],
+        'added': datetime.datetime.now(),
+        'published': comment['attributes']['created'],
+    }
+
+    columns = post_model.keys()
+    data = ['%s'] * len(post_model.values())
+    query = "INSERT INTO comments ({fields}) VALUES ({values})".format(
+        fields = ','.join(columns),
+        values = ','.join(data)
+    )
+    conn = get_raw_conn()
+    cursor = conn.cursor()
+    cursor.execute(query, list(post_model.values()))
+    conn.commit()
+    return_conn(conn)
+
+    if (config.ban_url):
+        requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + user_id + '/post/' + post_model['post_id'])
+
+def import_comments(url, key, post_id, user_id, import_id):
+    try:
+        scraper = create_scrapper_session().get(url, cookies = { 'session_id': key }, proxies=get_proxy())
+        scraper_data = scraper.json()
+        scraper.raise_for_status()
+    except requests.HTTPError as e:
+        log(import_id, f"Status code {e.response.status_code} when contacting Patreon API.", 'exception')
+        return
+    except Exception:
+        log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
+        return
+    
+    for comment in scraper_data['data']:
+        comment_id = comment['id']
+        try:
+            import_comment(comment, user_id, import_id)
+        except Exception as e:
+            log(import_id, f"Error while importing comment {comment_id} from post {post_id}", 'exception', True)
+            continue
+    
+    if scraper_data.get('included'):
+        for included in scraper_data['included']:
+            if (included['type'] == 'comment'):
+                comment_id = comment['id']
+                try:
+                    import_comment(included, user_id, import_id)
+                except Exception as e:
+                    log(import_id, f"Error while importing comment {comment_id} from post {post_id}", 'exception', True)
+                    continue
+    
+    if 'links' in scraper_data and 'next' in scraper_data['links']:
+        log(import_id, f"Processing next page of comments for post {post_id}", to_client = False)
+        import_comments(scraper_data['links']['next'], key, post_id, user_id, import_id)
+
 def import_campaign_page(url, key, import_id): 
     try:
         scraper = create_scrapper_session().get(url, cookies = { 'session_id': key }, proxies=get_proxy())
@@ -336,6 +442,8 @@ def import_campaign_page(url, key, import_id):
             if not post['attributes']['current_user_can_view']:
                 log(import_id, f'Skipping {post_id} from user {user_id} because this post is not available for current subscription tier', to_client = True)
                 continue            
+
+            import_comments(comments_url.format(post_id), key, post_id, user_id, import_id)
 
             if post_exists('patreon', user_id, post_id) and not post_flagged('patreon', user_id, post_id):
                 log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
