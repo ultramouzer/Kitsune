@@ -18,7 +18,7 @@ from gallery_dl import text
 from flask import current_app
 
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
-from ..lib.artist import index_artists, is_artist_dnp, update_artist
+from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
@@ -453,6 +453,7 @@ def import_campaign_page(url, key, import_id):
             
             if (config.ban_url):
                 requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
+            delete_artist_cache_keys('patreon', user_id)
 
             if backup_path is not None:
                 delete_backup(backup_path)

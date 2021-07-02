@@ -60,11 +60,13 @@ def get_base_paths(service_name, user_id, post_id):
     if service_name == 'patreon':
         return {'file': f"files/{user_id}/{post_id}", 'attachments': f"attachments/{user_id}/{post_id}"}
     elif service_name == 'gumroad':
-        return {'file': f"files/gumroad/{user_id}/{post_id}", 'attachments': f"attachments/{user_id}/{post_id}"}
+        return {'file': f"files/gumroad/{user_id}/{post_id}", 'attachments': f"attachments/gumroad/{user_id}/{post_id}"}
     elif service_name == 'subscribestar':
-        return {'file': f"files/subscribestar/{user_id}/{post_id}", 'attachments': f"attachments/{user_id}/{post_id}"}
+        return {'file': f"files/subscribestar/{user_id}/{post_id}", 'attachments': f"attachments/subscribestar/{user_id}/{post_id}"}
     elif service_name == 'fanbox':
-        return {'file': f"files/fanbox/{user_id}/{post_id}", 'attachments': f"attachments/{user_id}/{post_id}"}
+        return {'file': f"files/fanbox/{user_id}/{post_id}", 'attachments': f"attachments/fanbox/{user_id}/{post_id}"}
+    elif service_name == 'fantia':
+        return {'file': f"files/fantia/{user_id}/{post_id}", 'attachments': f"attachments/fantia/{user_id}/{post_id}"}
 
 
 # TODO: Solve a possible race condition: thread A created dir, but thread B moved it afterwards

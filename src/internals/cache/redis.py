@@ -17,7 +17,9 @@ def delete_keys(keys):
     for key in keys:
         conn.delete(key)
 
-def delete_keys_pattern(pattern):
-    redis = get_conn()
-    keys = redis.keys(pattern)
-    redis.delete(*keys)
+def delete_keys_pattern(patterns):
+    redis = get_redis()
+    for pattern in patterns:
+        keys = redis.keys(pattern)
+        if (len(keys)):
+            redis.delete(*keys)

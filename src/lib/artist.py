@@ -102,6 +102,7 @@ def index_artists():
 
             if (config.ban_url):
                 requests.request('BAN', f"{config.ban_url}/{post['service']}/user/" + post['user'])
+            delete_artist_cache_keys(post['service'], post['user'])
         except Exception:
             logging.exception(f"Error while indexing user {post['user']}")
 
