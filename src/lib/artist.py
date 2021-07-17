@@ -111,7 +111,7 @@ def index_artists():
 
 def update_artist(service, artist_id):
     conn = get_raw_conn()
-    cursor = get_cursor()
+    cursor = conn.cursor()
     cursor.execute('UPDATE lookup SET updated = CURRENT_TIMESTAMP WHERE service = %s AND id = %s', (service, artist_id))
     conn.commit()
     return_conn(conn)
