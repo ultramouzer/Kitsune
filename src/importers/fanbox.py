@@ -15,12 +15,83 @@ from PixivUtil2.PixivModelFanbox import FanboxArtist, FanboxPost
 
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys
-from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup
+from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.utils import get_import_id
 from ..internals.utils.logger import log
 from ..internals.utils.scrapper import create_scrapper_session
+
+def import_comment(comment, user_id, post_id, import_id):
+    commenter_id = comment['user']['userId']
+    comment_id = comment['id']
+    
+    if comment_exists('fanbox', commenter_id, comment_id):
+        log(import_id, f"Skipping comment {comment_id} from post {post_id} because already exists", to_client = False)
+        return
+    
+    log(import_id, f"Starting comment import: {comment_id} from post {post_id}", to_client = False)
+
+    post_model = {
+        'id': comment_id,
+        'post_id': post_id,
+        'parent_id': comment['parentCommentId'] if comment['parentCommentId'] != '0' else None,
+        'commenter': commenter_id,
+        'service': 'fanbox',
+        'content': comment['body'],
+        'added': datetime.datetime.now(),
+        'published': comment['createdDatetime'],
+    }
+
+    columns = post_model.keys()
+    data = ['%s'] * len(post_model.values())
+    query = "INSERT INTO comments ({fields}) VALUES ({values})".format(
+        fields = ','.join(columns),
+        values = ','.join(data)
+    )
+    conn = get_raw_conn()
+    cursor = conn.cursor()
+    cursor.execute(query, list(post_model.values()))
+    conn.commit()
+    return_conn(conn)
+
+    if comment.get('replies'):
+        for comment in comment['replies']:
+            import_comment(comment, user_id, post_id, import_id)
+    
+    if (config.ban_url):
+        requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + user_id + '/post/' + post_model['post_id'])
+
+def import_comments(key, post_id, user_id, import_id, url = None):
+    if not url:
+        url = f'https://api.fanbox.cc/post.listComments?postId={post_id}&limit=10'
+    
+    try:
+        scraper = create_scrapper_session().get(
+            url,
+            cookies = { 'session_id': key },
+            headers={ 'origin': 'https://fanbox.cc' },
+            proxies=get_proxy()
+        )
+        scraper_data = scraper.json()
+        scraper.raise_for_status()
+    except requests.HTTPError:
+        log(import_id, f'HTTP error when contacting Fanbox API ({url}). No comments will be imported.', 'exception')
+        return
+    
+    if scraper_data.get('body'):
+        for comment in scraper_data['body']['items']:
+            comment_id = comment['id']
+            try:
+                import_comment(comment, user_id, post_id, import_id)
+            except Exception as e:
+                log(import_id, f"Error while importing comment {comment_id} from post {post_id}", 'exception', True)
+                continue
+    
+    next_url = scraper_data['body'].get('nextUrl')
+    if next_url:
+        log(import_id, f"Processing next page of comments for post {post_id}", to_client = False)
+        import_comments(key, post_id, user_id, import_id, url = next_url)
 
 def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
     try:
@@ -57,6 +128,8 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                 if is_artist_dnp('fanbox', user_id):
                     log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
                     continue
+
+                import_comments(key, post_id, user_id, import_id)
 
                 if post_exists('fanbox', user_id, post_id) and not post_flagged('fanbox', user_id, post_id):
                     log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
