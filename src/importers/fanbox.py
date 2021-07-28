@@ -67,9 +67,9 @@ def import_comments(key, post_id, user_id, import_id, url = None):
         url = f'https://api.fanbox.cc/post.listComments?postId={post_id}&limit=10'
     
     try:
-        scraper = create_scrapper_session().get(
+        scraper = create_scrapper_session(useCloudscraper=False).get(
             url,
-            cookies = { 'session_id': key },
+            cookies = { 'FANBOXSESSID': key },
             headers={ 'origin': 'https://fanbox.cc' },
             proxies=get_proxy()
         )
