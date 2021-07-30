@@ -473,7 +473,7 @@ def get_current_user_id(key, import_id):
     
     return scraper_data['data']['id']
 
-def import_channel(auth_token, url, import_id, timestamp = '9007199254740991'):
+def import_channel(auth_token, url, import_id, current_user, timestamp = '9007199254740991'):
     try:
         scraper = create_scrapper_session(useCloudscraper=False).get(sendbird_messages_url.format(url, timestamp), headers = {
             'session-key': auth_token,
@@ -501,6 +501,14 @@ def import_channel(auth_token, url, import_id, timestamp = '9007199254740991'):
                 log(import_id, f"Skipping message {dm_id} from user {user_id} because already exists", to_client = False)
                 continue
             
+            if user_id == current_user:
+                log(import_id, f"Skipping message {dm_id} from user {user_id} because it was made by the contributor", to_client = False)
+                continue
+
+            if not message['message'].strip():
+                log(import_id, f"Skipping message {dm_id} from user {user_id} because it is empty", to_client = False)
+                continue
+
             post_model = {
                 'import_id': import_id,
                 'id': dm_id,
@@ -510,7 +518,7 @@ def import_channel(auth_token, url, import_id, timestamp = '9007199254740991'):
                 'embed': {}, # Unused, but could populate with OpenGraph data in the future
                 'added': datetime.datetime.now(),
                 'published': datetime.datetime.fromtimestamp(message['created_at'] / 1000.0),
-                'file': {} # Unused. Might support file DMs if Patreon actually uses them
+                'file': {} # Unused. Might support file DMs if Patreon begins using them.
             }
 
             post_model['embed'] = json.dumps(post_model['embed'])
@@ -548,7 +556,7 @@ def import_channels(auth_token, current_user, campaigns, import_id, token = ''):
     
     for channel in scraper_data['channels']:
         try:
-            import_channel(auth_token, channel['channel']['channel_url'], import_id)
+            import_channel(auth_token, channel['channel']['channel_url'], import_id, current_user)
         except Exception as e:
             log(import_id, f"Error while importing DM channel {channel['channel']['channel_url']}", 'exception', True)
             continue
