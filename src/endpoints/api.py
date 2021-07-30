@@ -26,7 +26,9 @@ def import_api():
     import_id = get_import_id(key)
     service = request.form.get('service')
     allowed_to_save_session = request.form.get('save_session_key', False)
+    allowed_to_scrape_dms = request.form.get('save_dms', False)
     channel_ids = request.form.get('channel_ids')
+    contributor_id = request.form.get('contributor_id')
 
     if not key:
         return "", 401
@@ -38,7 +40,7 @@ def import_api():
     args = None
     if service == 'patreon':
         target = patreon.import_posts
-        args = (key,)
+        args = (key, allowed_to_scrape_dms, contributor_id)
     elif service == 'fanbox':
         target = fanbox.import_posts
         args = (key,)

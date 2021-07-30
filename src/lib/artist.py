@@ -33,6 +33,24 @@ def delete_all_artist_keys():
     
     delete_keys(keys)
 
+def dm_exists(service, artist_id, dm_id, content):
+    conn = get_raw_conn()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM dms WHERE id = %s AND \"user\" = %s AND service = %s", (dm_id, artist_id, service,))
+    existing_dms_by_id = cursor.fetchall()
+    cursor.close()
+    return_conn(conn)
+    if (len(existing_dms_by_id) > 0):
+        return True
+    else:
+        conn = get_raw_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM dms WHERE content = %s AND \"user\" = %s AND service = %s", (content, artist_id, service,))
+        existing_dms_by_content = cursor.fetchall()
+        cursor.close()
+        return_conn(conn)
+        return len(existing_dms_by_content) > 0
+
 def is_artist_dnp(service, artist_id):
     conn = get_raw_conn()
     cursor = conn.cursor()
