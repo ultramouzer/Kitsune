@@ -473,7 +473,7 @@ def get_current_user_id(key, import_id):
     
     return scraper_data['data']['id']
 
-def import_channel(auth_token, url, import_id, current_user, timestamp = '9007199254740991'):
+def import_channel(auth_token, url, import_id, current_user, contributor_id, timestamp = '9007199254740991'):
     try:
         scraper = create_scrapper_session(useCloudscraper=False).get(sendbird_messages_url.format(url, timestamp), headers = {
             'session-key': auth_token,
@@ -511,6 +511,7 @@ def import_channel(auth_token, url, import_id, current_user, timestamp = '900719
 
             post_model = {
                 'import_id': import_id,
+                'contributor_id': contributor_id,
                 'id': dm_id,
                 '"user"': user_id,
                 'service': 'patreon',
@@ -540,9 +541,9 @@ def import_channel(auth_token, url, import_id, current_user, timestamp = '900719
             continue
     
     if (scraper_data['messages']):
-        import_channel(auth_token, url, import_id, scraper_data['messages'][0]['created_at'])
+        import_channel(auth_token, url, import_id, current_user, contributor_id, timestamp = scraper_data['messages'][0]['created_at'])
 
-def import_channels(auth_token, current_user, campaigns, import_id, token = ''):
+def import_channels(auth_token, current_user, campaigns, import_id, contributor_id, token = ''):
     try:
         scraper = create_scrapper_session(useCloudscraper=False).get(sendbird_channels_url.format(current_user, token, ','.join(campaigns)), headers = {
             'session-key': auth_token,
@@ -556,7 +557,7 @@ def import_channels(auth_token, current_user, campaigns, import_id, token = ''):
     
     for channel in scraper_data['channels']:
         try:
-            import_channel(auth_token, channel['channel']['channel_url'], import_id, current_user)
+            import_channel(auth_token, channel['channel']['channel_url'], import_id, current_user, contributor_id)
         except Exception as e:
             log(import_id, f"Error while importing DM channel {channel['channel']['channel_url']}", 'exception', True)
             continue
@@ -564,7 +565,7 @@ def import_channels(auth_token, current_user, campaigns, import_id, token = ''):
     if (scraper_data['next']):
         import_channels(auth_token, current_user, campaigns, import_id, scraper_data['next'])
 
-def import_dms(key, import_id):
+def import_dms(key, import_id, contributor_id):
     proxy = get_proxy()
     current_user_id = get_current_user_id(key, import_id)
     if (proxy):
@@ -583,7 +584,7 @@ def import_dms(key, import_id):
     ws_data = json.loads(ws.recv().replace('LOGI', ''))
     ws.close()
 
-    import_channels(ws_data['key'], current_user_id, get_dm_campaigns(key, current_user_id, import_id), import_id)
+    import_channels(ws_data['key'], current_user_id, get_dm_campaigns(key, current_user_id, import_id), import_id, contributor_id)
 
 def import_comment(comment, user_id, import_id):
     post_id = comment['relationships']['post']['data']['id']
@@ -825,10 +826,10 @@ def import_campaign_page(url, key, import_id):
         log(import_id, f"Finished scanning for posts.")
         index_artists()
 
-def import_posts(import_id, key, allowed_to_scrape_dms):
+def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id):
     if (allowed_to_scrape_dms):
         log(import_id, f"Importing DMs...", to_client = True)
-        import_dms(key, import_id)
+        import_dms(key, import_id, contributor_id)
         log(import_id, f"Done importing DMs.", to_client = True)
     campaign_ids = get_campaign_ids(key, import_id)
     if len(campaign_ids) > 0:
