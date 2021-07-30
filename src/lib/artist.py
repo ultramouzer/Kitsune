@@ -36,7 +36,7 @@ def delete_all_artist_keys():
 def dm_exists(service, artist_id, dm_id, content):
     conn = get_raw_conn()
     cursor = conn.cursor()
-    cursor.execute("SELECT id FROM unapproved_dms WHERE id = %s AND \"user\" = %s AND service = %s", (dm_id, artist_id, service,))
+    cursor.execute("SELECT id FROM dms WHERE id = %s AND \"user\" = %s AND service = %s", (dm_id, artist_id, service,))
     existing_dms_by_id = cursor.fetchall()
     cursor.close()
     return_conn(conn)
@@ -45,7 +45,7 @@ def dm_exists(service, artist_id, dm_id, content):
     else:
         conn = get_raw_conn()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM unapproved_dms WHERE content = %s AND \"user\" = %s AND service = %s", (content, artist_id, service,))
+        cursor.execute("SELECT * FROM dms WHERE content = %s AND \"user\" = %s AND service = %s", (content, artist_id, service,))
         existing_dms_by_content = cursor.fetchall()
         cursor.close()
         return_conn(conn)
