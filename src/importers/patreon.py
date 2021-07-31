@@ -563,7 +563,7 @@ def import_channels(auth_token, current_user, campaigns, import_id, contributor_
             continue
 
     if (scraper_data['next']):
-        import_channels(auth_token, current_user, campaigns, import_id, scraper_data['next'])
+        import_channels(auth_token, current_user, campaigns, import_id, contributor_id, token = scraper_data['next'])
 
 def import_dms(key, import_id, contributor_id):
     proxy = get_proxy()
