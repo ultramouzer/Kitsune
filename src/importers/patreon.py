@@ -12,6 +12,7 @@ from os import makedirs
 from os.path import join, splitext
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+from retry import retry
 
 from websocket import create_connection
 from urllib.parse import urlparse
@@ -335,6 +336,21 @@ current_user_url_with_pledges = 'https://www.patreon.com/api/current_user' \
     'cadence'
 ]) + '&fields[follow]=[]' + '&json-api-version=1.0'
 
+@retry(tries=10, delay=2)
+def get_ws_connection(url):
+    proxy = get_proxy()
+    if (proxy):
+        proxy_url = urlparse(proxy['https'])
+        return create_connection(
+            url,
+            http_proxy_host=proxy_url.hostname,
+            http_proxy_port=proxy_url.port,
+            http_proxy_auth=(proxy_url.username, proxy_url.password) if proxy_url.username and proxy_url.password else None,
+            proxy_type=proxy_url.scheme
+        )
+    else:
+        return create_connection(url)
+
 #get ids of campaigns with active pledge
 def get_active_campaign_ids(key, import_id):
     try:
@@ -566,21 +582,8 @@ def import_channels(auth_token, current_user, campaigns, import_id, contributor_
         import_channels(auth_token, current_user, campaigns, import_id, contributor_id, token = scraper_data['next'])
 
 def import_dms(key, import_id, contributor_id):
-    proxy = get_proxy()
     current_user_id = get_current_user_id(key, import_id)
-    if (proxy):
-        proxy_url = urlparse(proxy['https'])
-        ws = create_connection(
-            sendbird_ws_url.format(current_user_id,
-            get_sendbird_token(key, import_id),
-            round(time.time() * 1000)),
-            http_proxy_host=proxy_url.hostname,
-            http_proxy_port=proxy_url.port,
-            http_proxy_auth=(proxy_url.username, proxy_url.password) if proxy_url.username and proxy_url.password else None,
-            proxy_type=proxy_url.scheme
-        )
-    else:
-        ws = create_connection(sendbird_ws_url.format(current_user_id, get_sendbird_token(key, import_id), round(time.time() * 1000)))
+    ws = get_ws_connection(sendbird_ws_url.format(current_user_id, get_sendbird_token(key, import_id), round(time.time() * 1000)))
     ws_data = json.loads(ws.recv().replace('LOGI', ''))
     ws.close()
 
