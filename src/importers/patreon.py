@@ -569,7 +569,7 @@ def import_dms(key, import_id, contributor_id):
     proxy = get_proxy()
     current_user_id = get_current_user_id(key, import_id)
     if (proxy):
-        proxy_url = urlparse(proxy)
+        proxy_url = urlparse(proxy['https'])
         ws = create_connection(
             sendbird_ws_url.format(current_user_id,
             get_sendbird_token(key, import_id),
