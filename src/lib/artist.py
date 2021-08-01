@@ -43,12 +43,12 @@ def dm_exists(service, artist_id, dm_id, content):
     if (len(existing_dms_by_id) > 0):
         return True
     else:
-        conn = get_raw_conn()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM dms WHERE content = %s AND \"user\" = %s AND service = %s", (content, artist_id, service,))
-        existing_dms_by_content = cursor.fetchall()
-        cursor.close()
-        return_conn(conn)
+        conn2 = get_raw_conn()
+        cursor2 = conn2.cursor()
+        cursor2.execute("SELECT * FROM dms WHERE content = %s AND \"user\" = %s AND service = %s", (content, artist_id, service,))
+        existing_dms_by_content = cursor2.fetchall()
+        cursor2.close()
+        return_conn(conn2)
         return len(existing_dms_by_content) > 0
 
 def is_artist_dnp(service, artist_id):
