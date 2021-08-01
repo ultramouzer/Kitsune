@@ -10,7 +10,7 @@ pool = None
 def init():
     global pool
     try:
-        pool = psycopg2.pool.ThreadedConnectionPool(1, 5000,
+        pool = psycopg2.pool.ThreadedConnectionPool(1, 10000,
             host = config.database_host,
             dbname = config.database_dbname,
             user = config.database_user,
