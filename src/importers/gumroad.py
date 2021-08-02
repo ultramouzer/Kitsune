@@ -151,10 +151,12 @@ def import_posts(import_id, key, offset = 1):
                 updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
             )
             conn = get_raw_conn()
-            cursor = conn.cursor()
-            cursor.execute(query, list(post_model.values()))
-            conn.commit()
-            return_conn(conn)
+            try:
+                cursor = conn.cursor()
+                cursor.execute(query, list(post_model.values()))
+                conn.commit()
+            except:
+                return_conn(conn)
 
             update_artist('gumroad', user_id)
             delete_post_flags('gumroad', user_id, post_id)

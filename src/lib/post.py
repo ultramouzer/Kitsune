@@ -59,11 +59,13 @@ def discord_post_exists(server_id, channel_id, post_id):
 
 def delete_post_flags(service, artist_id, post_id):
     conn = get_raw_conn()
-    cursor = conn.cursor()
-    cursor.execute('DELETE FROM booru_flags WHERE service = %s AND "user" = %s AND id = %s', (service, artist_id, post_id))
-    cursor.close()
-    conn.commit()
-    return_conn(conn)
+    try:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM booru_flags WHERE service = %s AND "user" = %s AND id = %s', (service, artist_id, post_id))
+        cursor.close()
+        conn.commit()
+    finally:
+        return_conn(conn)
 
 def get_base_paths(service_name, user_id, post_id):
     if service_name == 'patreon':

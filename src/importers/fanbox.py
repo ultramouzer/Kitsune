@@ -50,10 +50,12 @@ def import_comment(comment, user_id, post_id, import_id):
         values = ','.join(data)
     )
     conn = get_raw_conn()
-    cursor = conn.cursor()
-    cursor.execute(query, list(post_model.values()))
-    conn.commit()
-    return_conn(conn)
+    try:
+        cursor = conn.cursor()
+        cursor.execute(query, list(post_model.values()))
+        conn.commit()
+    finally:
+        return_conn(conn)
 
     if comment.get('replies'):
         for comment in comment['replies']:
@@ -247,10 +249,12 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                     updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
                 )
                 conn = get_raw_conn()
-                cursor = conn.cursor()
-                cursor.execute(query, list(post_model.values()))
-                conn.commit()
-                return_conn(conn)
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute(query, list(post_model.values()))
+                    conn.commit()
+                except:
+                    return_conn(conn)
 
                 update_artist('fanbox', user_id)
                 delete_post_flags('fanbox', user_id, post_id)

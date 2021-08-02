@@ -548,10 +548,12 @@ def import_channel(auth_token, url, import_id, current_user, contributor_id, tim
                 values = ','.join(data)
             )
             conn = get_raw_conn()
-            cursor = conn.cursor()
-            cursor.execute(query, list(post_model.values()))
-            conn.commit()
-            return_conn(conn)
+            try:
+                cursor = conn.cursor()
+                cursor.execute(query, list(post_model.values()))
+                conn.commit()
+            finally:
+                return_conn(conn)
         elif (message['type'] == 'FILE'):
             log(import_id, f'Skipping message {dm_id} because file DMs are unsupported', to_client=True)
             continue
@@ -622,10 +624,12 @@ def import_comment(comment, user_id, import_id):
         values = ','.join(data)
     )
     conn = get_raw_conn()
-    cursor = conn.cursor()
-    cursor.execute(query, list(post_model.values()))
-    conn.commit()
-    return_conn(conn)
+    try:
+        cursor = conn.cursor()
+        cursor.execute(query, list(post_model.values()))
+        conn.commit()
+    finally:
+        return_conn(conn)
 
     if (config.ban_url):
         requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + user_id + '/post/' + post_model['post_id'])
@@ -801,10 +805,12 @@ def import_campaign_page(url, key, import_id):
                 updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
             )
             conn = get_raw_conn()
-            cursor = conn.cursor()
-            cursor.execute(query, list(post_model.values()))
-            conn.commit()
-            return_conn(conn)
+            try:
+                cursor = conn.cursor()
+                cursor.execute(query, list(post_model.values()))
+                conn.commit()
+            finally:
+                return_conn(conn)
 
             update_artist('patreon', user_id)
             delete_post_flags('patreon', user_id, post_id)
