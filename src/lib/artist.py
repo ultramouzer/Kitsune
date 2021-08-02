@@ -8,6 +8,14 @@ from ..internals.utils.proxy import get_proxy
 from ..internals.cache.redis import delete_keys, delete_keys_pattern
 from ..internals.database.database import get_raw_conn, return_conn, get_cursor
 
+def delete_dm_cache_keys(service, artist_id):
+    artist_id = str(artist_id)
+    delete_keys([ 'dms:' + service + ':' + artist_id ])
+
+def delete_comment_cache_keys(service, artist_id, post_id):
+    artist_id = str(artist_id)
+    delete_keys([ 'comments:' + service + ':' + artist_id ])
+
 def delete_artist_cache_keys(service, artist_id):
     artist_id = str(artist_id)
     keys = [
