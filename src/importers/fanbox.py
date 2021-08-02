@@ -6,13 +6,13 @@ from os import makedirs
 from os.path import join
 import requests
 import datetime
-import config
 import json
 
 from flask import current_app
 
 from PixivUtil2.PixivModelFanbox import FanboxArtist, FanboxPost
 
+from configs.env_vars import download_path, ban_url
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, delete_comment_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists
@@ -61,8 +61,8 @@ def import_comment(comment, user_id, post_id, import_id):
         for comment in comment['replies']:
             import_comment(comment, user_id, post_id, import_id)
     
-    if (config.ban_url):
-        requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + user_id + '/post/' + post_model['post_id'])
+    if (ban_url):
+        requests.request('BAN', f"{ban_url}/{post_model['service']}/user/" + user_id + '/post/' + post_model['post_id'])
     delete_comment_cache_keys(post_model['service'], user_id, post_model['post_id'])
 
 def import_comments(key, post_id, user_id, import_id, url = None):
@@ -217,7 +217,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                     elif type(parsed_post.embeddedFiles[i]) is str:
                         if i == 0:
                             filename, _ = download_file(
-                                join(config.download_path, file_directory),
+                                join(download_path, file_directory),
                                 parsed_post.embeddedFiles[i],
                                 cookies={ 'FANBOXSESSID': key },
                                 headers={ 'origin': 'https://fanbox.cc' }
@@ -226,7 +226,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                             post_model['file']['path'] = f'/{file_directory}/{filename}'
                         else:
                             filename, _ = download_file(
-                                join(config.download_path, attachments_directory),
+                                join(download_path, attachments_directory),
                                 parsed_post.embeddedFiles[i],
                                 cookies={ 'FANBOXSESSID': key },
                                 headers={ 'origin': 'https://fanbox.cc' }
@@ -260,8 +260,8 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                 update_artist('fanbox', user_id)
                 delete_post_flags('fanbox', user_id, post_id)
 
-                if (config.ban_url):
-                    requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
+                if (ban_url):
+                    requests.request('BAN', f"{ban_url}/{post_model['service']}/user/" + post_model['"user"'])
                 delete_artist_cache_keys('fanbox', user_id)
 
                 if backup_path is not None:

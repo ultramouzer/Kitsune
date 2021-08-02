@@ -6,10 +6,10 @@ import re
 import shutil
 import functools
 import urllib
-import config
 from PIL import Image
 from os import rename, makedirs, remove
 from os.path import join, getsize, exists, splitext, basename, dirname
+from configs.env_vars import download_path
 from .proxy import get_proxy
 from .utils import get_hash_of_file
 
@@ -110,7 +110,7 @@ def make_thumbnail(path):
         image = Image.open(path)
         image = image.convert('RGB')
         image.thumbnail((800, 800))
-        makedirs(dirname(join(config.download_path, 'thumbnail' + path.replace(config.download_path, ''))), exist_ok=True)
-        image.save(join(config.download_path, 'thumbnail' + path.replace(config.download_path, '')), 'JPEG', quality=60)
+        makedirs(dirname(join(download_path, 'thumbnail' + path.replace(download_path, ''))), exist_ok=True)
+        image.save(join(download_path, 'thumbnail' + path.replace(download_path, '')), 'JPEG', quality=60)
     except:
         pass

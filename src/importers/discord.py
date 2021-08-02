@@ -8,9 +8,9 @@ import uuid
 import time
 from random import randrange
 from os.path import join, splitext
-import config
 import json
 
+from configs.env_vars import download_path, ban_url
 from ..internals.utils.logger import log
 from ..internals.utils.scrapper import create_scrapper_session
 from ..internals.utils.proxy import get_proxy
@@ -102,7 +102,7 @@ def process_channel(channel_id, server_id, import_id, key, before = None):
                 for attachment in post['attachments']:
                     filename = attachment['filename']
                     _, _ = download_file(
-                        join(config.download_path, attachments_directory),
+                        join(download_path, attachments_directory),
                         attachment['url'] if 'url' in attachment and attachment['url'] != None else attachment['proxy_url'],
                         filename)
                     post_model['attachments'].append({
@@ -138,10 +138,10 @@ def process_channel(channel_id, server_id, import_id, key, before = None):
             finally:
                 return_conn(conn)
 
-            if (config.ban_url):
-                requests.request('BAN', f"{config.ban_url}/discord/server/{post_model['server']}")
-                requests.request('BAN', f"{config.ban_url}/api/discord/channel/{post_model['channel']}")
-                requests.request('BAN', f"{config.ban_url}/api/discord/channels/lookup?q={post_model['server']}")
+            if (ban_url):
+                requests.request('BAN', f"{ban_url}/discord/server/{post_model['server']}")
+                requests.request('BAN', f"{ban_url}/api/discord/channel/{post_model['channel']}")
+                requests.request('BAN', f"{ban_url}/api/discord/channels/lookup?q={post_model['server']}")
 
             log(import_id, f"Finished importing {post_id} from channel {channel_id}", to_client = False)    
         except Exception as e:

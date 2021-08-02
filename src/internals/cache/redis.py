@@ -1,12 +1,13 @@
 import redis
 from os import getenv
-import config
+
+from configs.env_vars import redis_host, redis_port
 
 pool = None
 
 def init():
     global pool
-    pool = redis.ConnectionPool(host=config.redis_host, port=config.redis_port)
+    pool = redis.ConnectionPool(host=redis_host, port=redis_port)
     return pool
 
 def get_redis():

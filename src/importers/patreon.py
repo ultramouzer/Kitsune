@@ -4,7 +4,6 @@ sys.setrecursionlimit(100000)
 import time
 import datetime
 import dateutil
-import config
 import uuid
 import json
 import requests
@@ -20,6 +19,7 @@ from gallery_dl import text
 
 from flask import current_app
 
+from configs.env_vars import download_path, ban_url
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, dm_exists, delete_comment_cache_keys, delete_dm_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists
@@ -555,8 +555,8 @@ def import_channel(auth_token, url, import_id, current_user, contributor_id, tim
             finally:
                 return_conn(conn)
             
-            if (config.ban_url):
-                requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + user_id + "/dms")
+            if (ban_url):
+                requests.request('BAN', f"{ban_url}/{post_model['service']}/user/" + user_id + "/dms")
             delete_dm_cache_keys(post_model['service'], user_id)
         elif (message['type'] == 'FILE'):
             log(import_id, f'Skipping message {dm_id} because file DMs are unsupported', to_client=True)
@@ -635,8 +635,8 @@ def import_comment(comment, user_id, import_id):
     finally:
         return_conn(conn)
 
-    if (config.ban_url):
-        requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + user_id + '/post/' + post_model['post_id'])
+    if (ban_url):
+        requests.request('BAN', f"{ban_url}/{post_model['service']}/user/" + user_id + '/post/' + post_model['post_id'])
     delete_comment_cache_keys(post_model['service'], user_id, post_model['post_id'])
 
 def import_comments(url, key, post_id, user_id, import_id):
@@ -736,7 +736,7 @@ def import_campaign_page(url, key, import_id):
                     ext = splitext(path)[1]
                     fn = str(uuid.uuid4()) + ext
                     filename, _ = download_file(
-                        join(config.download_path, 'inline'),
+                        join(download_path, 'inline'),
                         download_url,
                         name = fn
                     )
@@ -749,7 +749,7 @@ def import_campaign_page(url, key, import_id):
 
             if post['attributes']['post_file']:
                 filename, _ = download_file(
-                    join(config.download_path, file_directory),
+                    join(download_path, file_directory),
                     post['attributes']['post_file']['url'],
                     name = post['attributes']['post_file']['name']
                 )
@@ -758,7 +758,7 @@ def import_campaign_page(url, key, import_id):
 
             for attachment in post['relationships']['attachments']['data']:
                 filename, _ = download_file(
-                    join(config.download_path, attachments_directory),
+                    join(download_path, attachments_directory),
                     f"https://www.patreon.com/file?h={post_id}&i={attachment['id']}",
                     cookies = { 'session_id': key }
                 )
@@ -773,7 +773,7 @@ def import_campaign_page(url, key, import_id):
                         if media['attributes']['state'] != 'ready':
                             continue
                         filename, _ = download_file(
-                            join(config.download_path, attachments_directory),
+                            join(download_path, attachments_directory),
                             media['attributes']['download_url'],
                             name = media['attributes']['file_name']
                         )
@@ -787,7 +787,7 @@ def import_campaign_page(url, key, import_id):
                     if media['attributes']['state'] != 'ready':
                         continue
                     filename, _ = download_file(
-                        join(config.download_path, attachments_directory),
+                        join(download_path, attachments_directory),
                         media['attributes']['download_url'],
                         name = media['attributes']['file_name']
                     )
@@ -820,8 +820,8 @@ def import_campaign_page(url, key, import_id):
             update_artist('patreon', user_id)
             delete_post_flags('patreon', user_id, post_id)
             
-            if (config.ban_url):
-                requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
+            if (ban_url):
+                requests.request('BAN', f"{ban_url}/{post_model['service']}/user/" + post_model['"user"'])
             delete_artist_cache_keys('patreon', user_id)
 
             if backup_path is not None:

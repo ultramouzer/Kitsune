@@ -3,11 +3,11 @@ import shutil
 import tempfile
 from os import makedirs
 
+from configs.env_vars import download_path
 from ..internals.cache.redis import delete_keys
 from ..internals.database.database import get_cursor, get_conn, return_conn, get_raw_conn
 from shutil import rmtree
 from os.path import join, exists
-import config
 
 def delete_post_cache_keys(service, artist_id, post_id):
     keys = [
@@ -84,10 +84,10 @@ def get_base_paths(service_name, user_id, post_id):
 def move_to_backup(service_name, user_id, post_id):
     base_paths = get_base_paths(service_name, user_id, post_id)
     backup_path = tempfile.mkdtemp()
-    if exists(join(config.download_path, base_paths['file'])):
-        shutil.move(join(config.download_path, base_paths['file']), join(backup_path, 'file'))
-    if exists(join(config.download_path, base_paths['attachments'])):
-        shutil.move(join(config.download_path, base_paths['attachments']), join(backup_path, 'attachments'))
+    if exists(join(download_path, base_paths['file'])):
+        shutil.move(join(download_path, base_paths['file']), join(backup_path, 'file'))
+    if exists(join(download_path, base_paths['attachments'])):
+        shutil.move(join(download_path, base_paths['attachments']), join(backup_path, 'attachments'))
     return backup_path
 
 
@@ -97,9 +97,9 @@ def delete_backup(backup_path):
 
 def restore_from_backup(service_name, user_id, post_id, backup_path):
     base_paths = get_base_paths(service_name, user_id, post_id)
-    shutil.rmtree(join(config.download_path, base_paths['file']), ignore_errors=True)
+    shutil.rmtree(join(download_path, base_paths['file']), ignore_errors=True)
     if exists(join(backup_path, 'file')):
-        os.rename(join(backup_path, 'file'), join(config.download_path, base_paths['file']))
-    shutil.rmtree(join(config.download_path, base_paths['attachments']), ignore_errors=True)
+        os.rename(join(backup_path, 'file'), join(download_path, base_paths['file']))
+    shutil.rmtree(join(download_path, base_paths['attachments']), ignore_errors=True)
     if exists(join(backup_path, 'attachments')):
-        os.rename(join(backup_path, 'attachments'), join(config.download_path, base_paths['attachments']))
+        os.rename(join(backup_path, 'attachments'), join(download_path, base_paths['attachments']))

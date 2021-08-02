@@ -1,6 +1,5 @@
 import sys
 import datetime
-import config
 import json
 import uuid
 import requests
@@ -14,6 +13,7 @@ import dateparser
 
 from flask import current_app
 
+from configs.env_vars import download_path, ban_url
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, restore_from_backup, delete_backup
@@ -126,7 +126,7 @@ def import_posts(import_id, key):
                             name = os.path.basename( urlparse(attachment['url']).path ) #gets the filename from the url
                             #download the file
                             filename, _ = download_file(
-                                join(config.download_path, attachments_directory),
+                                join(download_path, attachments_directory),
                                 attachment['url'],
                                 name = name
                             )
@@ -141,7 +141,7 @@ def import_posts(import_id, key):
                             name = os.path.basename( urlparse(attachment.div.a['href']).path ) #gets the filename from the url
                             #download the file
                             filename, _ = download_file(
-                                join(config.download_path, attachments_directory),
+                                join(download_path, attachments_directory),
                                 attachment.div.a['href'],
                                 name = name
                             )
@@ -177,8 +177,8 @@ def import_posts(import_id, key):
                 update_artist('subscribestar', user_id)
                 delete_post_flags('subscribestar', user_id, str(post_id))
 
-                if (config.ban_url):
-                    requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
+                if (ban_url):
+                    requests.request('BAN', f"{ban_url}/{post_model['service']}/user/" + post_model['"user"'])
                 delete_artist_cache_keys('subscribestar', user_id)
 
                 if backup_path is not None:

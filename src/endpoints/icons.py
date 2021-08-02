@@ -2,13 +2,13 @@ from flask import Blueprint, redirect, current_app
 
 import re
 import cssutils
-import config
 import requests
 import cloudscraper
 from os import makedirs
 from os.path import exists, join
 from bs4 import BeautifulSoup
 
+from configs.derived_vars import icons_path
 from ..internals.utils.download import download_file
 from ..internals.utils.proxy import get_proxy
 
@@ -16,15 +16,17 @@ icons = Blueprint('icons', __name__)
 
 @icons.route('/icons/<service>/<user>')
 def import_icon(service, user):
-    makedirs(join(config.download_path, 'icons', service), exist_ok=True)
-    if not exists(join(config.download_path, 'icons', service, user)):
+    service_path = join(icons_path, service)
+    user_path = join(service_path, user)
+    makedirs(service_path, exist_ok=True)
+    if not exists(user_path):
         try:
             if service == 'patreon':
                 scraper = cloudscraper.create_scraper().get('https://api.patreon.com/user/' + user, proxies=get_proxy())
                 data = scraper.json()
                 scraper.raise_for_status()
                 download_file(
-                    join(config.download_path, 'icons', service),
+                    service_path,
                     data['included'][0]['attributes']['avatar_photo_url'] if data.get('included') else data['data']['attributes']['image_url'],
                     name = user
                 )
@@ -34,7 +36,7 @@ def import_icon(service, user):
                 scraper.raise_for_status()
                 if data['body']['user']['iconUrl']:
                     download_file(
-                        join(config.download_path, 'icons', service),
+                        service_path,
                         data['body']['user']['iconUrl'],
                         name = user
                     )
@@ -46,7 +48,7 @@ def import_icon(service, user):
                 scraper.raise_for_status()
                 soup = BeautifulSoup(data, 'html.parser')
                 download_file(
-                    join(config.download_path, 'icons', service),
+                    service_path,
                     soup.find('div', class_='profile_main_info-userpic').contents[0]['src'],
                     name = user
                 )
@@ -58,7 +60,7 @@ def import_icon(service, user):
                 sheet = cssutils.css.CSSStyleSheet()
                 sheet.add("dummy_selector { %s }" % soup.select_one('.profile-picture-medium.js-profile-picture').get('style'))
                 download_file(
-                    join(config.download_path, 'icons', service),
+                    service_path,
                     list(cssutils.getUrls(sheet))[0],
                     name = user
                 )
@@ -68,22 +70,22 @@ def import_icon(service, user):
                 scraper.raise_for_status()
                 if data['fanclub']['icon']:
                     download_file(
-                        join(config.download_path, 'icons', service),
+                        service_path,
                         data['fanclub']['icon']['main'],
                         name = user
                     )
                 else:
                     raise IconsException()
             else:
-                with open(join(config.download_path, 'icons', service, user), 'w') as _: 
+                with open(user_path, 'w') as _: 
                     pass
         except IconsException:
             current_app.logger.exception(f'Exception when downloading icons for user {user} on {service}')
-            with open(join(config.download_path, 'icons', service, user), 'w') as _: 
+            with open(user_path, 'w') as _: 
                 pass
         except requests.HTTPError as e:
             if e.response.status_code == 404:
-                with open(join(config.download_path, 'icons', service, user), 'w') as _: 
+                with open(user_path, 'w') as _: 
                     pass
             else:
                 current_app.logger.exception(f'HTTP exception when downloading icons for user {user} on {service}')

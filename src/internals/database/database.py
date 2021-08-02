@@ -6,6 +6,8 @@ from os import getenv
 import traceback
 import config
 
+from configs.env_vars import database_host, database_dbname, database_user, database_password
+
 pool = None
 
 def init():
@@ -13,10 +15,10 @@ def init():
     try:
         pool = ThreadSafeConnectionPool(minconn=0, maxconn=5000, idle_timeout=300,
             dsn=make_dsn(
-                host = config.database_host,
-                dbname = config.database_dbname,
-                user = config.database_user,
-                password = config.database_password,
+                host = database_host,
+                dbname = database_dbname,
+                user = database_user,
+                password = database_password,
                 port = 5432
             )
         )

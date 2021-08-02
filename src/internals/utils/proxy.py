@@ -1,10 +1,11 @@
-import config
 import random
 import logging
 
+from configs.derived_vars import proxy_list
+
 def get_proxy():
-    if config.proxies and len(config.proxies):
-        proxy = random.choice(config.proxies)
+    if proxy_list and len(proxy_list):
+        proxy = random.choice(proxy_list)
         return {
             "http": proxy,
             "https": proxy

@@ -2,7 +2,6 @@ import sys
 sys.setrecursionlimit(100000)
 
 import re
-import config
 import requests
 import uuid
 import json
@@ -13,6 +12,7 @@ from os import makedirs
 
 from flask import current_app
 
+from configs.env_vars import download_path, ban_url
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup
@@ -114,7 +114,7 @@ def import_posts(import_id, key, offset = 1):
             thumbnail = thumbnail1 or thumbnail2 or thumbnail3
             if thumbnail:
                 filename, _ = download_file(
-                    join(config.download_path, file_directory),
+                    join(download_path, file_directory),
                     thumbnail
                 )
                 post_model['file']['name'] = filename
@@ -123,7 +123,7 @@ def import_posts(import_id, key, offset = 1):
             for _file in download_data['content_items']:
                 if (_file['type'] == 'file'):
                     filename, _ = download_file(
-                        join(config.download_path, attachments_directory),
+                        join(download_path, attachments_directory),
                         'https://gumroad.com' + _file['download_url'],
                         name = f'{_file["file_name"]}.{_file["extension"].lower()}',
                         cookies = { '_gumroad_app_session': key }
@@ -161,8 +161,8 @@ def import_posts(import_id, key, offset = 1):
             update_artist('gumroad', user_id)
             delete_post_flags('gumroad', user_id, post_id)
 
-            if (config.ban_url):
-                requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
+            if (ban_url):
+                requests.request('BAN', f"{ban_url}/{post_model['service']}/user/" + post_model['"user"'])
             delete_artist_cache_keys('gumroad', user_id)
             
             if backup_path is not None:

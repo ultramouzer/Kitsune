@@ -2,13 +2,13 @@ import sys
 sys.setrecursionlimit(100000)
 
 import requests
-import config
 import json
 import datetime
 from urllib.parse import urljoin
 from os.path import join
 from bs4 import BeautifulSoup
 
+from configs.env_vars import download_path, ban_url
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..internals.utils.logger import log
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys
@@ -144,7 +144,7 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
 
             if post_data['post']['thumb']:
                 filename, _ = download_file(
-                    join(config.download_path, file_directory),
+                    join(download_path, file_directory),
                     post_data['post']['thumb']['original']
                 )
                 post_model['file']['name'] = filename
@@ -156,7 +156,7 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
                 if content['category'] == 'photo_gallery':
                     for photo in content['post_content_photos']:
                         filename, _ = download_file(
-                            join(config.download_path, attachments_directory),
+                            join(download_path, attachments_directory),
                             photo['url']['original'],
                             cookies=jar
                         )
@@ -166,7 +166,7 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
                         })
                 elif content['category'] == 'file':
                     filename, _ = download_file(
-                        join(config.download_path, attachments_directory),
+                        join(download_path, attachments_directory),
                         urljoin('https://fantia.jp/posts', content['download_uri']),
                         name = content['filename'],
                         cookies=jar
@@ -188,7 +188,7 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
                     for op in json.loads(content['comment'])['ops']:
                         if type(op['insert']) is dict and op['insert'].get('fantiaImage'):
                             filename, _ = download_file(
-                                join(config.download_path, attachments_directory),
+                                join(download_path, attachments_directory),
                                 urljoin('https://fantia.jp/', op['insert']['fantiaImage']['original_url']),
                                 cookies=jar
                             )
@@ -225,8 +225,8 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
             update_artist('fantia', user_id)
             delete_post_flags('fantia', user_id, post_id)
             
-            if (config.ban_url):
-                requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
+            if (ban_url):
+                requests.request('BAN', f"{ban_url}/{post_model['service']}/user/" + post_model['"user"'])
             delete_artist_cache_keys('fantia', user_id)
 
             if backup_path is not None:
