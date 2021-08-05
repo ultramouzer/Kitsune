@@ -128,7 +128,7 @@ def import_posts(import_id, key):
                     cursor3 = conn.cursor()
                     cursor3.execute(query, list(post_model.values()))
                     conn.commit()
-                except:
+                finally:
                     return_conn(conn)
 
                 update_artist('subscribestar', user_id)

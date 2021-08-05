@@ -254,7 +254,7 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                     cursor = conn.cursor()
                     cursor.execute(query, list(post_model.values()))
                     conn.commit()
-                except:
+                finally:
                     return_conn(conn)
 
                 update_artist('fanbox', user_id)
