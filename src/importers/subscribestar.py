@@ -45,7 +45,7 @@ def import_posts(import_id, key):
     jar.set('auth_token', key)
     try:
         scraper = create_scrapper_session(useCloudscraper=False).get(
-            "https://www.subscribestar.com/phd14517a.json",
+            "https://subscribestar.adult/phd14517a.json",
             cookies=jar,
             proxies=get_proxy()
         )
