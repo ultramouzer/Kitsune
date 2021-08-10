@@ -44,12 +44,12 @@ def import_posts(import_id, key):
     jar = requests.cookies.RequestsCookieJar()
     jar.set('auth_token', key)
     try:
-        scraper = create_scrapper_session(useCloudscraper=False).get(
+        scraper = create_scrapper_session(useCloudscraper=True).get(
             "https://subscribestar.adult/phd14517a.json",
             cookies=jar,
             proxies=get_proxy()
         )
-        scraper_data = scraper_data = scraper.json()['html']
+        scraper_data = scraper.json()['html']
         scraper.raise_for_status()
     except requests.HTTPError as exc:
         log(import_id, f'Status code {exc.response.status_code} when contacting SubscribeStar API.', 'exception')
