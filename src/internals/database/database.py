@@ -4,7 +4,6 @@ from psycopg2.extensions import make_dsn
 from psycopg2.extras import RealDictCursor
 from os import getenv
 import traceback
-import config
 
 from configs.env_vars import database_host, database_dbname, database_user, database_password
 
