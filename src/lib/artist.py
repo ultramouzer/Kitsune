@@ -8,6 +8,14 @@ from ..internals.utils.proxy import get_proxy
 from ..internals.cache.redis import delete_keys, delete_keys_pattern
 from ..internals.database.database import get_raw_conn, return_conn, get_cursor
 
+def delete_dm_cache_keys(service, artist_id):
+    artist_id = str(artist_id)
+    delete_keys([ 'dms:' + service + ':' + artist_id ])
+
+def delete_comment_cache_keys(service, artist_id, post_id):
+    artist_id = str(artist_id)
+    delete_keys([ 'comments:' + service + ':' + artist_id ])
+
 def delete_artist_cache_keys(service, artist_id):
     artist_id = str(artist_id)
     keys = [
@@ -32,6 +40,24 @@ def delete_all_artist_keys():
     ]
     
     delete_keys(keys)
+
+def dm_exists(service, artist_id, dm_id, content):
+    conn = get_raw_conn()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM dms WHERE id = %s AND \"user\" = %s AND service = %s", (dm_id, artist_id, service,))
+    existing_dms_by_id = cursor.fetchall()
+    cursor.close()
+    return_conn(conn)
+    if (len(existing_dms_by_id) > 0):
+        return True
+    else:
+        conn2 = get_raw_conn()
+        cursor2 = conn2.cursor()
+        cursor2.execute("SELECT * FROM dms WHERE content = %s AND \"user\" = %s AND service = %s", (content, artist_id, service,))
+        existing_dms_by_content = cursor2.fetchall()
+        cursor2.close()
+        return_conn(conn2)
+        return len(existing_dms_by_content) > 0
 
 def is_artist_dnp(service, artist_id):
     conn = get_raw_conn()
@@ -111,10 +137,12 @@ def index_artists():
 
 def update_artist(service, artist_id):
     conn = get_raw_conn()
-    cursor = conn.cursor()
-    cursor.execute('UPDATE lookup SET updated = CURRENT_TIMESTAMP WHERE service = %s AND id = %s', (service, artist_id))
-    conn.commit()
-    return_conn(conn)
+    try:
+        cursor = conn.cursor()
+        cursor.execute('UPDATE lookup SET updated = CURRENT_TIMESTAMP WHERE service = %s AND id = %s', (service, artist_id))
+        conn.commit()
+    finally:
+        return_conn(conn)
 
 def index_discord_channel_server(channel_data, server_data):
     conn = get_raw_conn()

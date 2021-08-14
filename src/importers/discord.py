@@ -131,10 +131,12 @@ def process_channel(channel_id, server_id, import_id, key, before = None):
             )
 
             conn = get_raw_conn()
-            cursor = conn.cursor()
-            cursor.execute(query, list(post_model.values()))
-            conn.commit()        
-            return_conn(conn)
+            try:
+                cursor = conn.cursor()
+                cursor.execute(query, list(post_model.values()))
+                conn.commit()
+            finally:
+                return_conn(conn)
 
             if (config.ban_url):
                 requests.request('BAN', f"{config.ban_url}/discord/server/{post_model['server']}")

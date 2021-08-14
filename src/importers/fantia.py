@@ -215,10 +215,12 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
             )
             
             conn = get_raw_conn()
-            cursor = conn.cursor()
-            cursor.execute(query, list(post_model.values()))
-            conn.commit()
-            return_conn(conn)
+            try:
+                cursor = conn.cursor()
+                cursor.execute(query, list(post_model.values()))
+                conn.commit()
+            finally:
+                return_conn(conn)
 
             update_artist('fantia', user_id)
             delete_post_flags('fantia', user_id, post_id)
