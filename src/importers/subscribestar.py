@@ -197,7 +197,7 @@ def import_posts(import_id, key):
         
         if more: #we get the next HTML ready, and it'll process the new
             try:
-                scraper = create_scrapper_session(useCloudscraper=False).get(
+                scraper = create_scrapper_session(useCloudscraper=True).get(
                     "https://www.subscribestar.com" + more['href'], #the next page
                     cookies=jar,
                     proxies=get_proxy()
