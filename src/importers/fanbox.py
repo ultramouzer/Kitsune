@@ -206,6 +206,32 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
     else:
         log(import_id, f'No posts detected.')
 
+<<<<<<< Updated upstream
+=======
+def import_posts(import_id, key):
+    # this block creates a list of campaign ids of both supported and canceled subscriptions within the month
+    log("running import_posts()")
+    print("running import_posts()")
+    print("sadasd")
+    subscribed_ids = get_subscribed_ids(import_id, key)
+    cancelled_ids = get_cancelled_ids(import_id, key)
+    ids = set()
+    if len(subscribed_ids) > 0:
+        ids.update(subscribed_ids)
+        log("added active ids")
+    if len(cancelled_ids) > 0:
+        ids.update(cancelled_ids)
+        log("added canceled ids")
+    campaign_ids = list(ids)
+
+    # this block uses the list of ids to import posts
+    if len(campaign_ids) > 0:
+        for campaign_id in campaign_ids:
+            import_posts_via_id(campaign_id, key)
+    else:
+        log(import_id, f"No active subscriptions or invalid key. No posts will be imported.", to_client = True)
+
+>>>>>>> Stashed changes
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         key = sys.argv[1]
