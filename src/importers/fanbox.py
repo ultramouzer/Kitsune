@@ -1,4 +1,3 @@
-from Kitsune.src.importers.patreon import get_active_campaign_ids
 import sys
 sys.path.append('./PixivUtil2')
 sys.setrecursionlimit(100000)
@@ -184,8 +183,8 @@ def get_cancelled_ids(import_id, key, url = 'https://api.fanbox.cc/payment.listP
 
 # most of this is copied from the old import_posts. 
 # now it uses a different url specific to a single creator instead of api.fanbox.cc/post.listSupporting.
-def import_posts_via_id(import_id, key, url = 'https://api.fanbox.cc/post.listCreator?userId={}&limit=50'.format(import_id)):
-
+def import_posts_via_id(import_id, key):
+    url = 'https://api.fanbox.cc/post.listCreator?userId={}&limit=50'.format(import_id)
     try:
         scraper = create_scrapper_session().get(
             url,
@@ -376,7 +375,6 @@ def import_posts_via_id(import_id, key, url = 'https://api.fanbox.cc/post.listCr
 
 def import_posts(import_id, key):
     # this block creates a list of campaign ids of both supported and canceled subscriptions within the month
-    log("running import_posts()")
     print("running import_posts()")
     print("sadasd")
     subscribed_ids = get_subscribed_ids(import_id, key)
@@ -398,7 +396,9 @@ def import_posts(import_id, key):
         log(import_id, f"No active subscriptions or invalid key. No posts will be imported.", to_client = True)
 
 if __name__ == '__main__':
+    print('start')
     if len(sys.argv) > 1:
+        print('start2')
         key = sys.argv[1]
         import_id = get_import_id(key)
         import_posts(import_id, sys.argv[1])
