@@ -12,7 +12,6 @@ steps = [
         CREATE TABLE files (
             id serial primary key,
             hash varchar not null,
-            local_path varchar not null,
             mtime timestamp not null,
             ctime timestamp not null,
             mime varchar,
