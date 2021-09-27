@@ -5,6 +5,7 @@ RUN apt-get update \
         nginx \
         libpq-dev \
         curl \
+        libmagic1
     && pip3 install uwsgi
 
 WORKDIR /app

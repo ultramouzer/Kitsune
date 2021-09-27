@@ -74,9 +74,7 @@ def process_channel(channel_id, server_id, import_id, key, before = None):
 
     for post in scraper_data:
         try:
-            post_id = post['id']
-            file_directory = f"files/{server_id}/{post_id}"
-            attachments_directory = f"attachments/{server_id}/{post_id}"     
+            post_id = post['id']    
 
             if discord_post_exists(server_id, channel_id, post_id): #todo: post re-importing for discord?
                 log(import_id, f'Skipping post {post_id} from server {server_id} because it already exists', to_client = True)
@@ -101,13 +99,12 @@ def process_channel(channel_id, server_id, import_id, key, before = None):
             if('attachments' in post and len(post['attachments']) > 0):
                 for attachment in post['attachments']:
                     filename = attachment['filename']
-                    _, _ = download_file(
-                        join(config.download_path, attachments_directory),
+                    reported_filename, hash_filename, _ = download_file(
                         attachment['url'] if 'url' in attachment and attachment['url'] != None else attachment['proxy_url'],
-                        filename)
+                        name = filename)
                     post_model['attachments'].append({
-                        'name': attachment['filename'],
-                        'path': f'/{attachments_directory}/{filename}'
+                        'name': reported_filename,
+                        'path': hash_filename
                     })
 
             post_model['author'] = json.dumps(post_model['author'])

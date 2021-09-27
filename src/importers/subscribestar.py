@@ -65,12 +65,9 @@ def import_posts(import_id, key):
         #     g.write(scraper_data)
         posts = soup.find_all("div", {"class": "post"}) #get the div of all the posts
         for post in posts:
-            backup_path = None
             try:
                 post_id = post['data-id']
                 user_id = post.find("a", {"class": "post-avatar"})['href'].replace('/', '')
-                # file_directory = f"files/subscribestar/{user_id}/{post_id}"
-                attachments_directory = f"attachments/subscribestar/{user_id}/{post_id}"
 
                 if "is-locked" in post.find("div", {"class": "post-body"})['class']:
                     log(import_id, f"Skipping post {post_id} from user {user_id} as tier is too high")
@@ -83,9 +80,6 @@ def import_posts(import_id, key):
                 if post_exists('subscribestar', user_id, str(post_id)) and not post_flagged('subscribestar', user_id, str(post_id)):
                     log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
                     continue
-
-                if post_flagged('subscribestar', user_id, str(post_id)):
-                    backup_path = move_to_backup('subscribestar', user_id, str(post_id))
 
                 log(import_id, f"Starting import: {post_id}")
                 #post_data = post.find("div", {"class": "trix-content"})
@@ -125,30 +119,28 @@ def import_posts(import_id, key):
                         for attachment in json.loads(image_attachments['data-gallery']):
                             name = os.path.basename( urlparse(attachment['url']).path ) #gets the filename from the url
                             #download the file
-                            filename, _ = download_file(
-                                join(config.download_path, attachments_directory),
+                            reported_filename, hash_filename, _ = download_file(
                                 attachment['url'],
                                 name = name
                             )
                             #add it to the list
                             post_model['attachments'].append({
-                                'name': name,
-                                'path': f'/{attachments_directory}/{filename}'
+                                'name': reported_filename,
+                                'path': hash_filename
                             })
 
                     if docs_attachments:
                         for attachment in docs_attachments.children:
                             name = os.path.basename( urlparse(attachment.div.a['href']).path ) #gets the filename from the url
                             #download the file
-                            filename, _ = download_file(
-                                join(config.download_path, attachments_directory),
+                            reported_filename, hash_filename, = download_file(
                                 attachment.div.a['href'],
                                 name = name
                             )
                             #add it to the list
                             post_model['attachments'].append({
-                                'name': name,
-                                'path': f'/{attachments_directory}/{filename}'
+                                'name': reported_filename,
+                                'path': hash_filename
                             })
                             
                     
@@ -181,16 +173,11 @@ def import_posts(import_id, key):
                     requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
                 delete_artist_cache_keys('subscribestar', user_id)
 
-                if backup_path is not None:
-                    delete_backup(backup_path)
                 log(import_id, f"Finished importing {post_id} from user {user_id}", to_client = False)
 
 
             except Exception:
                 log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception')
-
-                if backup_path is not None:
-                    restore_from_backup('subscribestar', user_id, post_id, backup_path)
                 continue
         
         more = soup.find("div", {"class": "posts-more"})

@@ -111,8 +111,6 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
         return
 
     user_id = None
-    posts_imported = []
-    artists_with_posts_imported = []
     if scraper_data.get('body'):
         for post in scraper_data['body']['items']:
             backup_path = None
@@ -125,9 +123,6 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                 log(import_id, f'Skipping post {post_id} from user {user_id} because post is from higher subscription tier')
                 continue
             try:
-                file_directory = f"files/fanbox/{user_id}/{post_id}"
-                attachments_directory = f"attachments/fanbox/{user_id}/{post_id}"
-
                 if is_artist_dnp('fanbox', user_id):
                     log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
                     continue
@@ -216,24 +211,22 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                             """
                     elif type(parsed_post.embeddedFiles[i]) is str:
                         if i == 0:
-                            filename, _ = download_file(
-                                join(config.download_path, file_directory),
+                            reported_filename, hash_filename, _ = download_file(
                                 parsed_post.embeddedFiles[i],
                                 cookies={ 'FANBOXSESSID': key },
                                 headers={ 'origin': 'https://fanbox.cc' }
                             )
-                            post_model['file']['name'] = filename
-                            post_model['file']['path'] = f'/{file_directory}/{filename}'
+                            post_model['file']['name'] = reported_filename
+                            post_model['file']['path'] = hash_filename
                         else:
-                            filename, _ = download_file(
-                                join(config.download_path, attachments_directory),
+                            reported_filename, hash_filename, _ = download_file(
                                 parsed_post.embeddedFiles[i],
                                 cookies={ 'FANBOXSESSID': key },
                                 headers={ 'origin': 'https://fanbox.cc' }
                             )
                             post_model['attachments'].append({
-                                'name': filename,
-                                'path': f'/{attachments_directory}/{filename}'
+                                'name': reported_filename,
+                                'path': hash_filename
                             })
 
                 post_model['embed'] = json.dumps(post_model['embed'])

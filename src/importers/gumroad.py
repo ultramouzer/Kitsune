@@ -49,8 +49,6 @@ def import_posts(import_id, key, offset = 1):
 
     for product in products:
         try:
-            backup_path = None
-
             post_id = product['data-permalink']
             user_id = None
             cover_url = None
@@ -73,9 +71,6 @@ def import_posts(import_id, key, offset = 1):
             user_id = users[creator_name]
             purchase_download_url = react_props['purchase']['download_url']
 
-            file_directory = f"files/gumroad/{user_id}/{post_id}"
-            attachments_directory = f"attachments/gumroad/{user_id}/{post_id}"
-
             if is_artist_dnp('gumroad', user_id):
                 log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
                 continue
@@ -83,9 +78,6 @@ def import_posts(import_id, key, offset = 1):
             if post_exists('gumroad', user_id, post_id) and not post_flagged('gumroad', user_id, post_id):
                 log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
                 continue
-
-            if post_flagged('gumroad', user_id, post_id):
-                backup_path = move_to_backup('gumroad', user_id, post_id)
 
             log(import_id, f"Starting import: {post_id} from user {user_id}")
 
@@ -127,24 +119,22 @@ def import_posts(import_id, key, offset = 1):
                 }
 
             if cover_url:
-                filename, _ = download_file(
-                    join(config.download_path, file_directory),
+                reported_filename, hash_filename, _ = download_file(
                     cover_url
                 )
-                post_model['file']['name'] = filename
-                post_model['file']['path'] = f'/{file_directory}/{filename}'
+                post_model['file']['name'] = reported_filename
+                post_model['file']['path'] = hash_filename
 
             for _file in download_data['content_items']:
                 if (_file['type'] == 'file'):
-                    filename, _ = download_file(
-                        join(config.download_path, attachments_directory),
+                    reported_filename, hash_filename, _ = download_file(
                         'https://gumroad.com' + _file['download_url'],
                         name = f'{_file["file_name"]}.{_file["extension"].lower()}',
                         cookies = { '_gumroad_app_session': key }
                     )
                     post_model['attachments'].append({
-                        'name': filename,
-                        'path': f'/{attachments_directory}/{filename}'
+                        'name': reported_filename,
+                        'path': hash_filename
                     })
                 else:
                     log(import_id, f"Unsupported content found in product {post_id}. You should tell Shino about this.", to_client=True)
@@ -179,13 +169,9 @@ def import_posts(import_id, key, offset = 1):
                 requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
             delete_artist_cache_keys('gumroad', user_id)
             
-            if backup_path is not None:
-                delete_backup(backup_path)
             log(import_id, f"Finished importing post {post_id} from user {user_id}", to_client = False)
         except Exception as e:
             log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception')
-            if backup_path is not None:
-                restore_from_backup('gumroad', user_id, post_id, backup_path)
             continue
 
     if len(products):

@@ -92,8 +92,6 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
         try:
             user_id = fanclub_id
             post_id = post.select_one('a.link-block')['href'].lstrip('/posts/')
-            file_directory = f"files/fantia/{user_id}/{post_id}"
-            attachments_directory = f"attachments/fantia/{user_id}/{post_id}"
 
             if is_artist_dnp('fantia', user_id):
                 log(import_id, f"Skipping user {user_id} because they are in do not post list", to_client = True)
@@ -143,37 +141,34 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
             log(import_id, f"Starting import: {post_id} from user {user_id}")
 
             if post_data['post']['thumb']:
-                filename, _ = download_file(
-                    join(config.download_path, file_directory),
+                reported_filename, hash_filename, _ = download_file(
                     post_data['post']['thumb']['original']
                 )
-                post_model['file']['name'] = filename
-                post_model['file']['path'] = f'/{file_directory}/{filename}'
+                post_model['file']['name'] = reported_filename
+                post_model['file']['path'] = hash_filename
 
             for content in post_data['post']['post_contents']:
                 if (content['visible_status'] != 'visible'):
                     continue
                 if content['category'] == 'photo_gallery':
                     for photo in content['post_content_photos']:
-                        filename, _ = download_file(
-                            join(config.download_path, attachments_directory),
+                        reported_filename, hash_filename, _ = download_file(
                             photo['url']['original'],
                             cookies=jar
                         )
                         post_model['attachments'].append({
-                            'name': filename,
-                            'path': f'/{attachments_directory}/{filename}'
+                            'name': reported_filename,
+                            'path': hash_filename
                         })
                 elif content['category'] == 'file':
-                    filename, _ = download_file(
-                        join(config.download_path, attachments_directory),
+                    reported_filename, hash_filename, _ = download_file(
                         urljoin('https://fantia.jp/posts', content['download_uri']),
                         name = content['filename'],
                         cookies=jar
                     )
                     post_model['attachments'].append({
-                        'name': content['filename'],
-                        'path': f'/{attachments_directory}/{filename}'
+                        'name': reported_filename,
+                        'path': hash_filename
                     })
                 elif content['category'] == 'embed':
                     post_model['content'] += f"""
@@ -187,14 +182,13 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
                 elif content['category'] == 'blog':
                     for op in json.loads(content['comment'])['ops']:
                         if type(op['insert']) is dict and op['insert'].get('fantiaImage'):
-                            filename, _ = download_file(
-                                join(config.download_path, attachments_directory),
+                            reported_filename, hash_filename, _ = download_file(
                                 urljoin('https://fantia.jp/', op['insert']['fantiaImage']['original_url']),
                                 cookies=jar
                             )
                             post_model['attachments'].append({
-                                'name': filename,
-                                'path': f'/{attachments_directory}/{filename}'
+                                'name': reported_filename,
+                                'path': hash_filename
                             })
                 else:
                     log(import_id, f'Skipping content {content["id"]} from post {post_id}; unsupported type "{content["category"]}"', to_client = True)

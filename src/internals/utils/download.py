@@ -7,6 +7,10 @@ import shutil
 import functools
 import urllib
 import config
+import tempfile
+import os
+import magic
+import re
 from PIL import Image
 from os import rename, makedirs, remove
 from os.path import join, getsize, exists, splitext, basename, dirname
@@ -62,40 +66,44 @@ def slugify(text):
     text = u'_'.join(text.split())
     return text
 
-def download_file(ddir, url, name = None, **kwargs):
+def download_file(url, name = None, **kwargs):
+    temp_dir = tempfile.mkdtemp()
     temp_name = str(uuid.uuid4()) + '.temp'
     tries = 10
-    makedirs(ddir, exist_ok=True)
     for i in range(tries):
         try:
             r = requests.get(url, stream = True, proxies=get_proxy(), **kwargs)
             r.raw.read = functools.partial(r.raw.read, decode_content=True)
             r.raise_for_status()
             # Should retry on connection error
-            with open(join(ddir, temp_name), 'wb+') as file:
+            with open(join(temp_dir, temp_name), 'wb+') as file:
                 shutil.copyfileobj(r.raw, file)
                 # filename guessing
-                mimetype, _ = cgi.parse_header(r.headers['content-type'])
-                extension = mimetypes.guess_extension(mimetype, strict=False) if r.headers.get('content-type') else None
-                extension = extension or '.txt'
-                filename = name or r.headers.get('x-amz-meta-original-filename')
-                if filename is None:
-                    filename = get_filename_from_cd(r.headers.get('content-disposition')) or (str(uuid.uuid4()) + extension)
-                filename = slugify(filename)
-                # ensure unique filename
-                filename = uniquify(join(ddir, filename))
+                extension = re.sub('^.jpe$', '.jpg', mimetypes.guess_extension(magic.from_file(join(temp_dir, temp_name), mime=True), strict=False))
+                reported_filename = name or r.headers.get('x-amz-meta-original-filename') or get_filename_from_cd(r.headers.get('content-disposition')) or (str(uuid.uuid4()) + extension)
+                
                 # content integrity
                 if r.headers.get('content-length') and r.raw.tell() < int(r.headers.get('content-length')):
                     reported_size = r.raw.tell()
                     downloaded_size = r.headers.get('content-length')
                     raise DownloaderException(f'Downloaded size is less than reported; {downloaded_size} < {reported_size}')
 
-                file.close()
-                rename(join(ddir, temp_name), join(ddir, filename))
-                
-                make_thumbnail(join(ddir, filename))
+                # generate hashy filename
+                # this will be the one we actually save the file with
+                file_hash = get_hash_of_file(join(temp_dir, temp_name))
+                hash_filename = join(file_hash[0], file_hash[1:3], file_hash + extension)
 
-                return filename, r
+                if (exists(join(config.download_path, hash_filename))):
+                    shutil.rmtree(temp_dir)
+                    return reported_filename, hash_filename, r
+                
+                file.close()
+                
+                makedirs(join(config.download_path, file_hash[0], file_hash[1:3]), exist_ok=True)
+                rename(join(temp_dir, temp_name), join(config.download_path, hash_filename))
+                shutil.rmtree(temp_dir)
+                make_thumbnail(join(config.download_path, hash_filename))
+                return reported_filename, '/' + hash_filename, r
         except requests.HTTPError as e:
             raise e
         except:
