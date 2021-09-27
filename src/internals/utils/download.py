@@ -91,7 +91,7 @@ def download_file(url, name = None, **kwargs):
                 # generate hashy filename
                 # this will be the one we actually save the file with
                 file_hash = get_hash_of_file(join(temp_dir, temp_name))
-                hash_filename = join(file_hash[0], file_hash[1:3], file_hash + extension)
+                hash_filename = join(file_hash[0:2], file_hash[2:4], file_hash + extension)
 
                 if (exists(join(config.download_path, hash_filename))):
                     shutil.rmtree(temp_dir)
@@ -99,7 +99,7 @@ def download_file(url, name = None, **kwargs):
                 
                 file.close()
                 
-                makedirs(join(config.download_path, file_hash[0], file_hash[1:3]), exist_ok=True)
+                makedirs(join(config.download_path, file_hash[0:2], file_hash[2:4]), exist_ok=True)
                 rename(join(temp_dir, temp_name), join(config.download_path, hash_filename))
                 shutil.rmtree(temp_dir)
                 make_thumbnail(join(config.download_path, hash_filename))
