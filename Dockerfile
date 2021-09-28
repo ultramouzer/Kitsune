@@ -4,7 +4,7 @@ RUN apt-get update \
     && apt-get install -y \
         libpq-dev \
         curl \
-        libmagic1
+        libmagic1 \
     && pip3 install uwsgi
 
 WORKDIR /app
