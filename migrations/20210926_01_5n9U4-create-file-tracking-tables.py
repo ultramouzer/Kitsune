@@ -31,7 +31,8 @@ steps = [
             user varchar not null,
             post varchar not null,
             contributor_id varchar REFERENCES account(id),
-            inline boolean not null DEFAULT FALSE
+            inline boolean not null DEFAULT FALSE,
+            PRIMARY KEY (file_id, service, user, post)
         );
         """,
         "DROP TABLE file_post_relationships;"
@@ -44,7 +45,8 @@ steps = [
             server varchar not null,
             channel varchar not null,
             id varchar not null,
-            contributor_id varchar REFERENCES account(id)
+            contributor_id varchar REFERENCES account(id),
+            PRIMARY KEY (file_id, server, channel, id)
         );
         """,
         "DROP TABLE file_discord_message_relationships;"
