@@ -82,8 +82,8 @@ def download_file(
     discord_message_id: str = '',
     **kwargs
 ):
-    makedirs(join(config.download_path, 'temporary'), exist_ok=True)
-    temp_dir = tempfile.mkdtemp(dir=join(config.download_path, 'temporary'))
+    makedirs(join(config.download_path, 'tmp'), exist_ok=True)
+    temp_dir = tempfile.mkdtemp(dir=join(config.download_path, 'tmp'))
     temp_name = str(uuid.uuid4()) + '.temp'
     tries = 10
     for i in range(tries):
