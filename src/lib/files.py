@@ -7,9 +7,9 @@ def write_file_log(
     mime: str,
     ext: str,
     filename: str,
-    service: str | None,
-    user: str | None,
-    post: str | None,
+    service,
+    user,
+    post,
     inline: bool,
     remote_path: str,
     discord: bool = False,
@@ -20,18 +20,18 @@ def write_file_log(
     conn = get_raw_conn()
 
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO files (hash, mtime, ctime, mime, ext) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO UPDATE EXCLUDED.hash = hash RETURNING id", (fhash, mtime, ctime, mime, ext))
+    cursor.execute("INSERT INTO files (hash, mtime, ctime, mime, ext) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (hash) DO UPDATE SET hash = EXCLUDED.hash RETURNING id", (fhash, mtime, ctime, mime, ext))
     file_id = cursor.fetchone()['id']
 
     if (discord):
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO file_discord_message_relationships (file_id, filename, server, channel, id) VALUES (%s, %s, %s, %s, %s)", (file_id, filename, discord_message_server, discord_message_channel, discord_message_id))
+        cursor.execute("INSERT INTO file_discord_message_relationships (file_id, filename, server, channel, id) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING", (file_id, filename, discord_message_server, discord_message_channel, discord_message_id))
     else:
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO file_post_relationships (file_id, filename, service, user, post, inline) VALUES (%s, %s, %s, %s, %s, %s)", (file_id, filename, service, user, post, inline))
+        cursor.execute("INSERT INTO file_post_relationships (file_id, filename, service, \"user\", post, inline) VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING", (file_id, filename, service, user, post, inline))
     
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO file_server_relationships (file_id, remote_path) VALUES (%s, %s) RETURNING id", (file_id, remote_path))
+    cursor.execute("INSERT INTO file_server_relationships (file_id, remote_path) VALUES (%s, %s)", (file_id, remote_path))
     
     conn.commit()
     return_conn(conn)

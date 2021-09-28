@@ -71,9 +71,9 @@ def slugify(text):
 
 def download_file(
     url: str,
-    service: str | None,
-    user: str | None,
-    post: str | None,
+    service,
+    user,
+    post,
     name: str = None,
     inline: bool = False,
     discord: bool = False,
@@ -109,7 +109,7 @@ def download_file(
                 file_hash = get_hash_of_file(join(temp_dir, temp_name))
                 hash_filename = join(file_hash[0:2], file_hash[2:4], file_hash + extension)
 
-                fname = pathlib.Path(join(config.download_path, hash_filename))
+                fname = pathlib.Path(join(temp_dir, temp_name))
                 mtime = datetime.datetime.fromtimestamp(fname.stat().st_mtime)
                 ctime = datetime.datetime.fromtimestamp(fname.stat().st_ctime)
                 write_file_log(
