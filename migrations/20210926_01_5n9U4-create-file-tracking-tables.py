@@ -56,6 +56,16 @@ steps = [
             remote_path varchar not null
         );
         """,
-        "DROP TABLE account;"
-    )
+        "DROP TABLE file_server_relationships;"
+    ),
+    step('CREATE INDEX file_id_idx ON file_post_relationships USING btree ("file_id")', 'DROP INDEX file_id_idx'),
+    step('CREATE INDEX file_post_service_idx ON file_post_relationships USING btree ("service")', 'DROP INDEX file_post_service_idx'),
+    step('CREATE INDEX file_post_user_idx ON file_post_relationships USING btree ("user")', 'DROP INDEX file_post_user_idx'),
+    step('CREATE INDEX file_post_id_idx ON file_post_relationships USING btree ("id")', 'DROP INDEX file_post_id_idx'),
+    step('CREATE INDEX file_post_contributor_id_idx ON file_post_relationships USING btree ("contributor_id")', 'DROP INDEX file_post_contributor_id_idx'),
+    step('CREATE INDEX file_discord_id_idx ON file_discord_message_relationships USING btree ("file_id")', 'DROP INDEX file_discord_id_idx'),
+    step('CREATE INDEX file_discord_message_server_idx ON file_discord_message_relationships USING btree ("server")', 'DROP INDEX file_discord_message_server_idx'),
+    step('CREATE INDEX file_discord_message_channel_idx ON file_discord_message_relationships USING btree ("channel")', 'DROP INDEX file_discord_message_channel_idx'),
+    step('CREATE INDEX file_discord_message_id_idx ON file_discord_message_relationships USING btree ("id")', 'DROP INDEX file_discord_message_id_idx'),
+    step('CREATE INDEX file_discord_message_contributor_id_idx ON file_discord_message_relationships USING btree ("contributor_id")', 'DROP INDEX file_discord_message_contributor_id_idx'),
 ]

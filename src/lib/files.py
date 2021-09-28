@@ -20,7 +20,7 @@ def write_file_log(
     conn = get_raw_conn()
 
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO files (hash, mtime, ctime, mime, ext) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING RETURNING id", (fhash, mtime, ctime, mime, ext))
+    cursor.execute("INSERT INTO files (hash, mtime, ctime, mime, ext) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO UPDATE EXCLUDED.hash = hash RETURNING id", (fhash, mtime, ctime, mime, ext))
     file_id = cursor.fetchone()['id']
 
     if (discord):
