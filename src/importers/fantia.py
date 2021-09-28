@@ -88,7 +88,6 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
     scraped_posts = BeautifulSoup(scraper_data, 'html.parser').select('div.post')
     user_id = None
     for post in scraped_posts:
-        backup_path = None
         try:
             user_id = fanclub_id
             post_id = post.select_one('a.link-block')['href'].lstrip('/posts/')
@@ -100,9 +99,6 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
             if post_exists('fantia', user_id, post_id) and not post_flagged('fantia', user_id, post_id):
                 log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
                 continue
-
-            if post_flagged('fantia', user_id, post_id):
-                backup_path = move_to_backup('fantia', user_id, post_id)
 
             try:
                 post_scraper = create_scrapper_session(useCloudscraper=False).get(
@@ -235,14 +231,10 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
                 requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
             delete_artist_cache_keys('fantia', user_id)
 
-            if backup_path is not None:
-                delete_backup(backup_path)
             log(import_id, f"Finished importing {post_id} from user {user_id}", to_client=False)
         except Exception:
             log(import_id, f'Error importing post {post_id} from user {user_id}', 'exception')
-
-            if backup_path is not None:
-                restore_from_backup('fantia', user_id, post_id, backup_path)
+            
             continue
     
     if (scraped_posts):
