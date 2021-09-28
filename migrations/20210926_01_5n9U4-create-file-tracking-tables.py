@@ -30,10 +30,24 @@ steps = [
             service varchar not null,
             user varchar not null,
             post varchar not null,
-            contributor_user varchar REFERENCES account(id),
+            contributor_id varchar REFERENCES account(id),
+            inline boolean not null DEFAULT FALSE
         );
         """,
         "DROP TABLE file_post_relationships;"
+    ),
+    step(
+        """
+        CREATE TABLE file_discord_message_relationships (
+            file_id int not null REFERENCES files(id),
+            filename varchar not null,
+            server varchar not null,
+            channel varchar not null,
+            id varchar not null,
+            contributor_id varchar REFERENCES account(id)
+        );
+        """,
+        "DROP TABLE file_discord_message_relationships;"
     ),
     step(
         """

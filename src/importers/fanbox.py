@@ -213,6 +213,9 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                         if i == 0:
                             reported_filename, hash_filename, _ = download_file(
                                 parsed_post.embeddedFiles[i],
+                                'fanbox',
+                                user_id,
+                                post_id,
                                 cookies={ 'FANBOXSESSID': key },
                                 headers={ 'origin': 'https://fanbox.cc' }
                             )
@@ -221,6 +224,9 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
                         else:
                             reported_filename, hash_filename, _ = download_file(
                                 parsed_post.embeddedFiles[i],
+                                'fanbox',
+                                user_id,
+                                post_id,
                                 cookies={ 'FANBOXSESSID': key },
                                 headers={ 'origin': 'https://fanbox.cc' }
                             )

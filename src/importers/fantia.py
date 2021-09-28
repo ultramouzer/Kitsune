@@ -142,7 +142,10 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
 
             if post_data['post']['thumb']:
                 reported_filename, hash_filename, _ = download_file(
-                    post_data['post']['thumb']['original']
+                    post_data['post']['thumb']['original'],
+                    'fantia',
+                    user_id,
+                    post_id,
                 )
                 post_model['file']['name'] = reported_filename
                 post_model['file']['path'] = hash_filename
@@ -154,6 +157,9 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
                     for photo in content['post_content_photos']:
                         reported_filename, hash_filename, _ = download_file(
                             photo['url']['original'],
+                            'fantia',
+                            user_id,
+                            post_id,
                             cookies=jar
                         )
                         post_model['attachments'].append({
@@ -163,6 +169,9 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
                 elif content['category'] == 'file':
                     reported_filename, hash_filename, _ = download_file(
                         urljoin('https://fantia.jp/posts', content['download_uri']),
+                        'fantia',
+                        user_id,
+                        post_id,
                         name = content['filename'],
                         cookies=jar
                     )
@@ -184,6 +193,9 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
                         if type(op['insert']) is dict and op['insert'].get('fantiaImage'):
                             reported_filename, hash_filename, _ = download_file(
                                 urljoin('https://fantia.jp/', op['insert']['fantiaImage']['original_url']),
+                                'fantia',
+                                user_id,
+                                post_id,
                                 cookies=jar
                             )
                             post_model['attachments'].append({

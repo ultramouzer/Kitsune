@@ -731,7 +731,11 @@ def import_campaign_page(url, key, import_id):
                     fn = str(uuid.uuid4()) + ext
                     _, hash_filename, _ = download_file(
                         download_url,
-                        name = fn
+                        'patreon',
+                        user_id,
+                        post_id,
+                        name = fn,
+                        inline = True
                     )
                     post_model['content'] = post_model['content'].replace(download_url, hash_filename)
 
@@ -743,6 +747,9 @@ def import_campaign_page(url, key, import_id):
             if post['attributes']['post_file']:
                 reported_filename, hash_filename, _ = download_file(
                     post['attributes']['post_file']['url'],
+                    'patreon',
+                    user_id,
+                    post_id,
                     name = post['attributes']['post_file']['name']
                 )
                 post_model['file']['name'] = reported_filename
@@ -751,6 +758,9 @@ def import_campaign_page(url, key, import_id):
             for attachment in post['relationships']['attachments']['data']:
                 reported_filename, hash_filename, _ = download_file(
                     f"https://www.patreon.com/file?h={post_id}&i={attachment['id']}",
+                    'patreon',
+                    user_id,
+                    post_id,
                     cookies = { 'session_id': key }
                 )
                 post_model['attachments'].append({
@@ -765,6 +775,9 @@ def import_campaign_page(url, key, import_id):
                             continue
                         reported_filename, hash_filename, _ = download_file(
                             media['attributes']['download_url'],
+                            'patreon',
+                            user_id,
+                            post_id,
                             name = media['attributes']['file_name']
                         )
                         post_model['attachments'].append({
@@ -778,6 +791,9 @@ def import_campaign_page(url, key, import_id):
                         continue
                     reported_filename, hash_filename, _ = download_file(
                         media['attributes']['download_url'],
+                        'patreon',
+                        user_id,
+                        post_id,
                         name = media['attributes']['file_name']
                     )
                     post_model['attachments'].append({

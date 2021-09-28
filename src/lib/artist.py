@@ -72,7 +72,7 @@ def index_artists():
     conn = get_raw_conn()
     cursor = conn.cursor()
 
-    cursor.execute('select "user", "service" from "posts" as "post" where not exists (select * from "lookup" where id = post.user) group by "user", "service"')
+    cursor.execute('select "user", "service" from "posts" as "post" where not exists (select * from "lookup" where id = post."user" and service = post.service) group by "user", "service"')
     results = cursor.fetchall()
 
     for post in results:

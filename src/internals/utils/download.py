@@ -11,11 +11,14 @@ import tempfile
 import os
 import magic
 import re
+import pathlib
+import datetime
 from PIL import Image
 from os import rename, makedirs, remove
 from os.path import join, getsize, exists, splitext, basename, dirname
 from .proxy import get_proxy
 from .utils import get_hash_of_file
+from ...lib.files import write_file_log
 
 non_url_safe = ['"', '#', '$', '%', '&', '+',
     ',', '/', ':', ';', '=', '?',
@@ -66,7 +69,19 @@ def slugify(text):
     text = u'_'.join(text.split())
     return text
 
-def download_file(url, name = None, **kwargs):
+def download_file(
+    url: str,
+    service: str | None,
+    user: str | None,
+    post: str | None,
+    name: str = None,
+    inline: bool = False,
+    discord: bool = False,
+    discord_message_server: str = '',
+    discord_message_channel: str = '',
+    discord_message_id: str = '',
+    **kwargs
+):
     temp_dir = tempfile.mkdtemp()
     temp_name = str(uuid.uuid4()) + '.temp'
     tries = 10
@@ -79,7 +94,8 @@ def download_file(url, name = None, **kwargs):
             with open(join(temp_dir, temp_name), 'wb+') as file:
                 shutil.copyfileobj(r.raw, file)
                 # filename guessing
-                extension = re.sub('^.jpe$', '.jpg', mimetypes.guess_extension(magic.from_file(join(temp_dir, temp_name), mime=True), strict=False))
+                mime = magic.from_file(join(temp_dir, temp_name), mime=True)
+                extension = re.sub('^.jpe$', '.jpg', mimetypes.guess_extension(mime, strict=False))
                 reported_filename = name or r.headers.get('x-amz-meta-original-filename') or get_filename_from_cd(r.headers.get('content-disposition')) or (str(uuid.uuid4()) + extension)
                 
                 # content integrity
@@ -92,6 +108,27 @@ def download_file(url, name = None, **kwargs):
                 # this will be the one we actually save the file with
                 file_hash = get_hash_of_file(join(temp_dir, temp_name))
                 hash_filename = join(file_hash[0:2], file_hash[2:4], file_hash + extension)
+
+                fname = pathlib.Path(join(config.download_path, hash_filename))
+                mtime = datetime.datetime.fromtimestamp(fname.stat().st_mtime)
+                ctime = datetime.datetime.fromtimestamp(fname.stat().st_ctime)
+                write_file_log(
+                    file_hash,
+                    mtime,
+                    ctime,
+                    mime,
+                    extension,
+                    reported_filename,
+                    service,
+                    user,
+                    post,
+                    inline,
+                    url,
+                    discord=discord,
+                    discord_message_server=discord_message_server,
+                    discord_message_channel=discord_message_channel,
+                    discord_message_id=discord_message_id
+                )
 
                 if (exists(join(config.download_path, hash_filename))):
                     shutil.rmtree(temp_dir)

@@ -101,7 +101,15 @@ def process_channel(channel_id, server_id, import_id, key, before = None):
                     filename = attachment['filename']
                     reported_filename, hash_filename, _ = download_file(
                         attachment['url'] if 'url' in attachment and attachment['url'] != None else attachment['proxy_url'],
-                        name = filename)
+                        None,
+                        None,
+                        None,
+                        name = filename,
+                        discord = True,
+                        discord_message_server = server_id,
+                        discord_message_channel = channel_id,
+                        discord_message_id = post_id
+                    )
                     post_model['attachments'].append({
                         'name': reported_filename,
                         'path': hash_filename

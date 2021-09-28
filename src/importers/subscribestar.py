@@ -121,6 +121,9 @@ def import_posts(import_id, key):
                             #download the file
                             reported_filename, hash_filename, _ = download_file(
                                 attachment['url'],
+                                'subscribestar',
+                                user_id,
+                                str(post_id),
                                 name = name
                             )
                             #add it to the list
@@ -135,6 +138,9 @@ def import_posts(import_id, key):
                             #download the file
                             reported_filename, hash_filename, = download_file(
                                 attachment.div.a['href'],
+                                'subscribestar',
+                                user_id,
+                                str(post_id),
                                 name = name
                             )
                             #add it to the list

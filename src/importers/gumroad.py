@@ -120,7 +120,10 @@ def import_posts(import_id, key, offset = 1):
 
             if cover_url:
                 reported_filename, hash_filename, _ = download_file(
-                    cover_url
+                    cover_url,
+                    'gumroad',
+                    user_id,
+                    post_id,
                 )
                 post_model['file']['name'] = reported_filename
                 post_model['file']['path'] = hash_filename
@@ -129,6 +132,9 @@ def import_posts(import_id, key, offset = 1):
                 if (_file['type'] == 'file'):
                     reported_filename, hash_filename, _ = download_file(
                         'https://gumroad.com' + _file['download_url'],
+                        'gumroad',
+                        user_id,
+                        post_id,
                         name = f'{_file["file_name"]}.{_file["extension"].lower()}',
                         cookies = { '_gumroad_app_session': key }
                     )
