@@ -133,7 +133,7 @@ def download_file(
 
                 if (exists(join(config.download_path, hash_filename))):
                     shutil.rmtree(temp_dir)
-                    return reported_filename, hash_filename, r
+                    return reported_filename, '/' + hash_filename, r
                 
                 file.close()
                 
