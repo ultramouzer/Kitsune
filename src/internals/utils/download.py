@@ -125,8 +125,8 @@ def download_file(
     discord_message_id: str = '',
     **kwargs
 ):
-    makedirs(join(config.download_path, 'tmp'), exist_ok=True)
-    temp_dir = tempfile.mkdtemp(dir=join(config.download_path, 'tmp'))
+    makedirs(join(config.download_path, 'data', 'tmp'), exist_ok=True)
+    temp_dir = tempfile.mkdtemp(dir=join(config.download_path, 'data', 'tmp'))
     temp_name = str(uuid.uuid4()) + '.temp'
     tries = 10
     for i in range(tries):
@@ -174,16 +174,16 @@ def download_file(
                     discord_message_id=discord_message_id
                 )
 
-                if (exists(join(config.download_path, hash_filename))):
+                if (exists(join(config.download_path, 'data', hash_filename))):
                     shutil.rmtree(temp_dir)
                     return reported_filename, '/' + hash_filename, r
                 
                 file.close()
                 
                 makedirs(join(config.download_path, file_hash[0:2], file_hash[2:4]), exist_ok=True)
-                rename(join(temp_dir, temp_name), join(config.download_path, hash_filename))
+                rename(join(temp_dir, temp_name), join(config.download_path, 'data', hash_filename))
                 shutil.rmtree(temp_dir)
-                make_thumbnail(join(config.download_path, hash_filename))
+                make_thumbnail(join(config.download_path, 'data', hash_filename))
                 return reported_filename, '/' + hash_filename, r
         except requests.HTTPError as e:
             raise e
