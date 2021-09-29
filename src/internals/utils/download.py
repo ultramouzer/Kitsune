@@ -69,6 +69,49 @@ def slugify(text):
     text = u'_'.join(text.split())
     return text
 
+def download_branding(ddir, url, name = None, **kwargs):
+    temp_name = str(uuid.uuid4()) + '.temp'
+    tries = 10
+    makedirs(ddir, exist_ok=True)
+    for i in range(tries):
+        try:
+            r = requests.get(url, stream = True, proxies=get_proxy(), **kwargs)
+            r.raw.read = functools.partial(r.raw.read, decode_content=True)
+            r.raise_for_status()
+            # Should retry on connection error
+            with open(join(ddir, temp_name), 'wb+') as file:
+                shutil.copyfileobj(r.raw, file)
+                # filename guessing
+                mimetype, _ = cgi.parse_header(r.headers['content-type'])
+                extension = mimetypes.guess_extension(mimetype, strict=False) if r.headers.get('content-type') else None
+                extension = extension or '.txt'
+                filename = name or r.headers.get('x-amz-meta-original-filename')
+                if filename is None:
+                    filename = get_filename_from_cd(r.headers.get('content-disposition')) or (str(uuid.uuid4()) + extension)
+                filename = slugify(filename)
+                # ensure unique filename
+                filename = uniquify(join(ddir, filename))
+                # content integrity
+                if r.headers.get('content-length') and r.raw.tell() < int(r.headers.get('content-length')):
+                    reported_size = r.raw.tell()
+                    downloaded_size = r.headers.get('content-length')
+                    raise DownloaderException(f'Downloaded size is less than reported; {downloaded_size} < {reported_size}')
+
+                file.close()
+                rename(join(ddir, temp_name), join(ddir, filename))
+                
+                make_thumbnail(join(ddir, filename))
+
+                return filename, r
+        except requests.HTTPError as e:
+            raise e
+        except:
+            if i < tries - 1: # i is zero indexed
+                continue
+            else:
+                raise
+        break
+
 def download_file(
     url: str,
     service,

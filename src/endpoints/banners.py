@@ -7,7 +7,7 @@ from os import makedirs
 from os.path import exists, join
 from bs4 import BeautifulSoup
 
-from ..internals.utils.download import download_file
+from ..internals.utils.download import download_branding
 from ..internals.utils.proxy import get_proxy
 
 banners = Blueprint('banners', __name__)
@@ -22,7 +22,7 @@ def import_banner(service, user):
                 data = scraper.json()
                 scraper.raise_for_status()
                 if data.get('included') and data['included'][0]['attributes'].get('cover_photo_url'):
-                    download_file(
+                    download_branding(
                         join(config.download_path, 'banners', service),
                         data['included'][0]['attributes']['cover_photo_url'],
                         name = user
@@ -34,7 +34,7 @@ def import_banner(service, user):
                 data = scraper.json()
                 scraper.raise_for_status()
                 if data['body']['coverImageUrl']:
-                    download_file(
+                    download_branding(
                         join(config.download_path, 'banners', service),
                         data['body']['coverImageUrl'],
                         name = user
@@ -47,7 +47,7 @@ def import_banner(service, user):
                 scraper.raise_for_status()
                 soup = BeautifulSoup(data, 'html.parser')
                 if soup.find('img', class_='profile_main_info-cover'):
-                    download_file(
+                    download_branding(
                         join(config.download_path, 'banners', service),
                         soup.find('img', class_='profile_main_info-cover')['src'],
                         name = user
@@ -59,7 +59,7 @@ def import_banner(service, user):
                 data = scraper.json()
                 scraper.raise_for_status()
                 if data['fanclub']['cover']:
-                    download_file(
+                    download_branding(
                         join(config.download_path, 'banners', service),
                         data['fanclub']['cover']['main'],
                         name = user
