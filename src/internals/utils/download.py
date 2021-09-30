@@ -175,14 +175,14 @@ def download_file(
                 )
 
                 if (exists(join(config.download_path, 'data', hash_filename))):
-                    shutil.rmtree(temp_dir)
+                    shutil.rmtree(temp_dir, ignore_errors=True)
                     return reported_filename, '/' + hash_filename, r
                 
                 file.close()
                 
                 makedirs(join(config.download_path, file_hash[0:2], file_hash[2:4]), exist_ok=True)
                 rename(join(temp_dir, temp_name), join(config.download_path, 'data', hash_filename))
-                shutil.rmtree(temp_dir)
+                shutil.rmtree(temp_dir, ignore_errors=True)
                 make_thumbnail(join(config.download_path, 'data', hash_filename))
                 return reported_filename, '/' + hash_filename, r
         except requests.HTTPError as e:
