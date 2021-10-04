@@ -10,6 +10,7 @@ cssutils==2.3.0
 dateparser==1.0.0
 decorator==5.0.9
 demjson==2.2.4
+demjson3==3.0.5
 Flask==1.1.2
 gallery-dl==1.16.0
 html5lib==1.1
