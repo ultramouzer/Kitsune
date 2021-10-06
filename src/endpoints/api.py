@@ -2,6 +2,7 @@ from flask import Blueprint, request
 import json
 import os
 import config
+import threading
 
 from ..internals.utils.flask_thread import FlaskThread
 from ..internals.utils.utils import get_import_id
@@ -122,3 +123,7 @@ def upload_file(path):
     filename = uniquify(os.path.join(config.download_path, path, secure_filename(uploaded_file.filename)))
     uploaded_file.save(os.path.join(config.download_path, path, filename))
     return os.path.join('/', path, filename), 200
+
+@api.route('/api/active_imports', methods=['GET'])
+def get_thread_count():
+    return threading.active_count(), 200
