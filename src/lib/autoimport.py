@@ -8,7 +8,7 @@ import config
 def log_import_id(key_id, import_id):
     conn = get_raw_conn()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO saved_session_key_import_ids (key_id, import_id) VALUES (%s, %s)", (int(key_id), import_id))
+    cursor.execute("INSERT INTO saved_session_key_import_ids (key_id, import_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", (int(key_id), import_id))
     conn.commit()
     return_conn(conn)
 
