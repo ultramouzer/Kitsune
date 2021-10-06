@@ -16,6 +16,7 @@ from PixivUtil2.PixivModelFanbox import FanboxArtist, FanboxPost
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, delete_comment_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists
+from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.utils import get_import_id
@@ -96,7 +97,7 @@ def import_comments(key, post_id, user_id, import_id, url = None):
         log(import_id, f"Processing next page of comments for post {post_id}", to_client = False)
         import_comments(key, post_id, user_id, import_id, url = next_url)
 
-def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
+def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import = None, key_id = None, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
     try:
         scraper = create_scrapper_session(useCloudscraper=False).get(
             url,
@@ -106,10 +107,19 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
         )
         scraper_data = scraper.json()
         scraper.raise_for_status()
-    except requests.HTTPError:
+    except requests.HTTPError as exc:
         log(import_id, f'HTTP error when contacting Fanbox API ({url}). Stopping import.', 'exception')
+        if (exc.response.status_code == 401 and key_id):
+            kill_key(key_id)
         return
 
+    if (allowed_to_auto_import and url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
+        try:
+            encrypt_and_save_session_for_auto_import('fanbox', key, contributor_id = contributor_id)
+            log(import_id, f"Your key was successfully enrolled in auto-import!", to_client = True)
+        except:
+            log(import_id, f"An error occured while saving your key for auto-import.", 'exception')
+    
     user_id = None
     if scraper_data.get('body'):
         for post in scraper_data['body']['items']:
@@ -266,17 +276,9 @@ def import_posts(import_id, key, url = 'https://api.fanbox.cc/post.listSupportin
         next_url = scraper_data['body'].get('nextUrl')
         if next_url:
             log(import_id, f'Finished processing page ({url}). Processing {next_url}')
-            import_posts(import_id, key, next_url)
+            import_posts(import_id, key, url = next_url)
         else:
             log(import_id, f'Finished scanning for posts')
             index_artists()
     else:
         log(import_id, f'No posts detected.')
-
-if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        key = sys.argv[1]
-        import_id = get_import_id(key)
-        import_posts(import_id, sys.argv[1])
-    else:
-        print('Argument required - Login token')

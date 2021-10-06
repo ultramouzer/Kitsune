@@ -23,6 +23,7 @@ from flask import current_app
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, dm_exists, delete_comment_cache_keys, delete_dm_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists
+from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.logger import log
@@ -673,17 +674,26 @@ def import_comments(url, key, post_id, user_id, import_id):
         log(import_id, f"Processing next page of comments for post {post_id}", to_client = False)
         import_comments(scraper_data['links']['next'], key, post_id, user_id, import_id)
 
-def import_campaign_page(url, key, import_id): 
+def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_auto_import = None, key_id = None): 
     try:
         scraper = create_scrapper_session().get(url, cookies = { 'session_id': key }, proxies=get_proxy())
         scraper_data = scraper.json()
         scraper.raise_for_status()
     except requests.HTTPError as e:
         log(import_id, f"Status code {e.response.status_code} when contacting Patreon API.", 'exception')
+        if (e.response.status_code == 401 and key_id):
+            kill_key(key_id)
         return
     except Exception:
         log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
         return
+    
+    if (allowed_to_auto_import):
+        try:
+            encrypt_and_save_session_for_auto_import('patreon', key, contributor_id = contributor_id)
+            log(import_id, f"Your key was successfully enrolled in auto-import!", to_client = True)
+        except:
+            log(import_id, f"An error occured while saving your key for auto-import.", 'exception')
     
     user_id = None
     for post in scraper_data['data']:
@@ -841,7 +851,7 @@ def import_campaign_page(url, key, import_id):
         log(import_id, f"Finished scanning for posts.")
         index_artists()
 
-def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id):
+def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id, allowed_to_auto_import, key_id):
     if (allowed_to_scrape_dms):
         log(import_id, f"Importing DMs...", to_client = True)
         import_dms(key, import_id, contributor_id)
@@ -850,12 +860,6 @@ def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id):
     if len(campaign_ids) > 0:
         for campaign_id in campaign_ids:
             log(import_id, f"Importing campaign {campaign_id}", to_client = True)
-            import_campaign_page(posts_url + str(campaign_id), key, import_id)
+            import_campaign_page(posts_url + str(campaign_id), key, import_id, contributor_id = contributor_id, allowed_to_auto_import = allowed_to_auto_import, key_id = key_id)
     else:
         log(import_id, f"No active subscriptions or invalid key. No posts will be imported.", to_client = True)
-
-if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        import_posts(str(uuid.uuid4()), sys.argv[1])
-    else:
-        print('Argument required - Login token')

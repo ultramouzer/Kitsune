@@ -16,13 +16,14 @@ from flask import current_app
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup
+from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.logger import log
 from ..internals.utils.utils import get_value
 from ..internals.utils.scrapper import create_scrapper_session
 
-def import_posts(import_id, key, offset = 1):
+def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import = None, key_id = None, offset = 1):
     try:
         scraper = create_scrapper_session().get(
             f"https://gumroad.com/discover_search?from={offset}&user_purchases_only=true",
@@ -34,10 +35,19 @@ def import_posts(import_id, key, offset = 1):
     except requests.HTTPError:
         log(import_id, f'Status code {scraper_data.status_code} when contacting Gumroad API.', 'exception')
         return
-
+    
     if (scraper_data['total'] > 100000):
         log(import_id, f"Can't log in; is your session key correct?")
+        if (key_id):
+            kill_key(key_id)
         return
+
+    if (allowed_to_auto_import):
+        try:
+            encrypt_and_save_session_for_auto_import('gumroad', key, contributor_id = contributor_id)
+            log(import_id, f"Your key was successfully enrolled in auto-import!", to_client = True)
+        except:
+            log(import_id, f"An error occured while saving your key for auto-import.", 'exception')
     
     soup = BeautifulSoup(scraper_data['products_html'], 'html.parser')
     products = soup.find_all(class_='product-card')
@@ -187,9 +197,3 @@ def import_posts(import_id, key, offset = 1):
     else:
         log(import_id, f"Finished scanning for posts.")
         index_artists()
-
-if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        import_posts(str(uuid.uuid4()), sys.argv[1])
-    else:
-        print('Argument required - Login token')

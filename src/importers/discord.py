@@ -15,11 +15,29 @@ from ..internals.utils.logger import log
 from ..internals.utils.scrapper import create_scrapper_session
 from ..internals.utils.proxy import get_proxy
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
+from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..lib.artist import index_discord_channel_server, is_artist_dnp
 from ..lib.post import discord_post_exists
 from ..internals.utils.download import download_file, DownloaderException
 
 userAgent = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.305 Chrome/69.0.3497.128 Electron/4.0.8 Safari/537.36'
+
+def test_key_for_auto_import (import_id, key, channel_ids_str, contributor_id, allowed_to_auto_import, key_id):
+    try:
+        scraper = create_scrapper_session().get('https://discord.com/api/v9/users/@me/library', headers = { 'authorization': key, 'user-agent': userAgent }, proxies=get_proxy())
+        scraper.raise_for_status()
+    except requests.HTTPError as exc:
+        if (exc.response.status_code == 401 and key_id):
+            kill_key(key_id)
+        return
+    
+    if (allowed_to_auto_import):
+        try:
+            encrypt_and_save_session_for_auto_import('discord', key, contributor_id = contributor_id, discord_channel_ids = channel_ids_str)
+            log(import_id, f"Your key was successfully enrolled in auto-import!", to_client = True)
+        except:
+            log(import_id, f"An error occured while saving your key for auto-import.", 'exception')
+    
 
 def import_channel(channel_id, import_id, key):
     try:
@@ -160,7 +178,8 @@ def process_channel(channel_id, server_id, import_id, key, before = None):
         log(import_id, f"Finished scanning for posts.")
         return True
 
-def import_posts(import_id, key, channel_ids_str):
+def import_posts(import_id, key, channel_ids_str, contributor_id, allowed_to_auto_import, key_id):
+    test_key_for_auto_import(import_id, key, channel_ids_str, contributor_id, allowed_to_auto_import, key_id)
     channel_ids = channel_ids_str.split(',')
     if len(channel_ids) > 0:
         for channel_id in channel_ids:
@@ -168,9 +187,3 @@ def import_posts(import_id, key, channel_ids_str):
             import_channel(channel_id, import_id, key)
     else:
         log(import_id, f"No channels has been supplied. No posts will be imported.", to_client = True)
-
-if __name__ == '__main__':
-    if len(sys.argv) > 2:
-        import_posts(str(uuid.uuid4()), sys.argv[1], sys.args[2])
-    else:
-        print('Arguments required - Login token, channels list')

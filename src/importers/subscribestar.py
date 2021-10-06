@@ -17,6 +17,7 @@ from flask import current_app
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, restore_from_backup, delete_backup
+from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.scrapper import create_scrapper_session
 from ..internals.utils.proxy import get_proxy
@@ -40,7 +41,7 @@ def strip_tags(html):
     s.feed(html)
     return s.get_data()
 
-def import_posts(import_id, key):
+def import_posts(import_id, key, contributor_id, allowed_to_auto_import, key_id):
     jar = requests.cookies.RequestsCookieJar()
     jar.set('auth_token', key)
     try:
@@ -58,12 +59,23 @@ def import_posts(import_id, key):
     if scraper_data == "":
         log(import_id, f"No active subscriptions or invalid key. No posts will be imported.")
         return #break early as there's nothing anyway
-        
-    while True: #While there's still more pages of posts, then we return the function anyways
+    
+    first_run = True
+    while True:
         soup = BeautifulSoup(scraper_data, 'html.parser')
-        # with open("bbbbb", "w+", encoding="utf8") as g:
-        #     g.write(scraper_data)
-        posts = soup.find_all("div", {"class": "post"}) #get the div of all the posts
+        posts = soup.find_all("div", {"class": "post"})
+        if (first_run and len(posts) == 0):
+            if (key_id):
+                kill_key(key_id)
+        else:
+            if (allowed_to_auto_import):
+                try:
+                    encrypt_and_save_session_for_auto_import('subscribestar', key, contributor_id = contributor_id)
+                    log(import_id, f"Your key was successfully enrolled in auto-import!", to_client = True)
+                except:
+                    log(import_id, f"An error occured while saving your key for auto-import.", 'exception')
+        
+        first_run = False
         for post in posts:
             try:
                 post_id = post['data-id']
@@ -205,9 +217,3 @@ def import_posts(import_id, key):
             log(import_id, f"Finished scanning for posts.")
             index_artists()
             return
-
-if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        import_posts(str(uuid.uuid4()), sys.argv[1])
-    else:
-        print('Argument required - Login token')
