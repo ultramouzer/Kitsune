@@ -113,7 +113,7 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
             kill_key(key_id)
         return
 
-    if (allowed_to_auto_import and url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
+    if (allowed_to_auto_import and url == 'https://api.fanbox.cc/post.listSupporting?limit=50'):
         try:
             encrypt_and_save_session_for_auto_import('fanbox', key, contributor_id = contributor_id)
             log(import_id, f"Your key was successfully enrolled in auto-import!", to_client = True)
