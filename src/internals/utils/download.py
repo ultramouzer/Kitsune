@@ -140,7 +140,7 @@ def download_file(
                 # filename guessing
                 reported_mime, _ = cgi.parse_header(r.headers['content-type']) if r.headers.get('content-type') else None
                 mime = magic.from_file(join(temp_dir, temp_name), mime=True)
-                extension = re.sub('^.jpe$', '.jpg', mimetypes.guess_extension(mime or reported_mime or 'application/octet-stream', strict=False))
+                extension = re.sub('^.jpe$', '.jpg', mimetypes.guess_extension(mime or reported_mime or 'application/octet-stream', strict=False) or '.bin')
                 reported_filename = name or r.headers.get('x-amz-meta-original-filename') or get_filename_from_cd(r.headers.get('content-disposition')) or (str(uuid.uuid4()) + extension)
                 
                 # content integrity
