@@ -126,4 +126,4 @@ def upload_file(path):
 
 @api.route('/api/active_imports', methods=['GET'])
 def get_thread_count():
-    return threading.active_count(), 200
+    return str(threading.active_count()), 200
