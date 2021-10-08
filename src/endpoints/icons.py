@@ -41,9 +41,10 @@ def import_icon(service, user):
                 else:
                     raise IconsException()
             elif service == 'subscribestar':
-                scraper = requests.get('https://subscribestar.adult/' + user, proxies=get_proxy())
-                data = scraper.text
-                scraper.raise_for_status()
+                scraper = cloudscraper.create_scraper()
+                resp = scraper.get('https://subscribestar.adult/' + user, proxies=get_proxy())
+                data = resp.text
+                resp.raise_for_status()
                 soup = BeautifulSoup(data, 'html.parser')
                 download_branding(
                     join(config.download_path, 'icons', service),
@@ -51,9 +52,10 @@ def import_icon(service, user):
                     name = user
                 )
             elif service == 'gumroad':
-                scraper = requests.get('https://gumroad.com/' + user, proxies=get_proxy())
-                data = scraper.text
-                scraper.raise_for_status()
+                scraper = cloudscraper.create_scraper()
+                resp = scraper.get('https://gumroad.com/' + user, proxies=get_proxy())
+                data = resp.text
+                resp.raise_for_status()
                 soup = BeautifulSoup(data, 'html.parser')
                 sheet = cssutils.css.CSSStyleSheet()
                 sheet.add("dummy_selector { %s }" % soup.select_one('.profile-picture-medium.js-profile-picture').get('style'))

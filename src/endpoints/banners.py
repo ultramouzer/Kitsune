@@ -42,9 +42,10 @@ def import_banner(service, user):
                 else:
                     raise BannerException()
             elif service == 'subscribestar':
-                scraper = requests.get('https://subscribestar.adult/' + user, proxies=get_proxy())
-                data = scraper.text
-                scraper.raise_for_status()
+                scraper = cloudscraper.create_scraper()
+                resp = scraper.get('https://subscribestar.adult/' + user, proxies=get_proxy())
+                data = resp.text
+                resp.raise_for_status()
                 soup = BeautifulSoup(data, 'html.parser')
                 if soup.find('img', class_='profile_main_info-cover'):
                     download_branding(
