@@ -181,7 +181,7 @@ def download_file(
                 
                 file.close()
                 
-                makedirs(join(config.download_path, file_hash[0:2], file_hash[2:4]), exist_ok=True)
+                makedirs(join(config.download_path, 'data', file_hash[0:2], file_hash[2:4]), exist_ok=True)
                 rename(join(temp_dir, temp_name), join(config.download_path, 'data', hash_filename))
                 shutil.rmtree(temp_dir, ignore_errors=True)
                 make_thumbnail(join(config.download_path, 'data', hash_filename))
