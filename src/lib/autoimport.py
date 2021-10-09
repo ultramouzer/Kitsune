@@ -16,7 +16,7 @@ def kill_key(key_id):
     # mark as dead (should happen when a key is detected as unusable due to expiration/invalidation)
     conn = get_raw_conn()
     cursor = conn.cursor()
-    cursor.execute("UPDATE saved_session_keys SET dead = TRUE WHERE key_id = %s", (int(key_id),))
+    cursor.execute("UPDATE saved_session_keys SET dead = TRUE WHERE id = %s", (int(key_id),))
     conn.commit()
     return_conn()
 
