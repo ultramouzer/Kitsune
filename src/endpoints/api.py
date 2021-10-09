@@ -4,6 +4,7 @@ import os
 import config
 import threading
 
+from ..internals.utils import thread_master
 from ..internals.utils.flask_thread import FlaskThread
 from ..internals.utils.utils import get_import_id
 from ..internals.utils.encryption import encrypt_and_log_session
@@ -35,6 +36,7 @@ def autoimport_api():
     except:
         return "Error while decrypting session tokens. The private key may be incorrect.", 401
 
+    threads = []
     for key in keys_to_import:
         import_id = get_import_id(key['encrypted_key'])
         target = None
@@ -59,7 +61,9 @@ def autoimport_api():
             args = (key['encrypted_key'], key['discord_channel_ids'], key['contributor_id'], False, key['id'])
 
         log_import_id(key['id'], import_id)
-        FlaskThread(target=import_posts, args=(import_id, target, args)).start()
+        threads.append(FlaskThread(target=import_posts, args=(import_id, target, args)))
+
+    FlaskThread(target=thread_master.run, args=(threads,)).run()
     
     return '', 200
 
