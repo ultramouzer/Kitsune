@@ -1,5 +1,6 @@
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
+from ..internals.cache.redis import delete_keys, delete_keys_pattern
 from ..internals.database.database import get_raw_conn, return_conn, get_cursor
 from ..internals.utils.logger import log
 from base64 import b64decode,b64encode
@@ -18,7 +19,7 @@ def kill_key(key_id):
     cursor = conn.cursor()
     cursor.execute("UPDATE saved_session_keys SET dead = TRUE WHERE id = %s", (int(key_id),))
     conn.commit()
-    return_conn()
+    return_conn(conn)
 
 def decrypt_all_good_keys(privatekey):
     key_der = b64decode(privatekey.strip())
@@ -59,3 +60,5 @@ def encrypt_and_save_session_for_auto_import(service, key, contributor_id = None
     cursor.execute(query, list(model.values()))
     conn.commit()
     return_conn(conn)
+    if contributor_id:
+        delete_keys_pattern(['saved_keys:' + contributor_id])

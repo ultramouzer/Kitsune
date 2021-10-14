@@ -5,6 +5,7 @@ import logging
 import uwsgi
 import config
 
+from configs.derived_vars import is_development
 from src.endpoints.api import api
 from src.endpoints.icons import icons
 from src.endpoints.banners import banners
@@ -19,6 +20,9 @@ app = Flask(__name__)
 app.register_blueprint(api)
 app.register_blueprint(icons)
 app.register_blueprint(banners)
+if is_development:
+    from development import development
+    app.register_blueprint(development)
 
 logging.basicConfig(filename='kemono_importer.log', level=logging.DEBUG)
 logging.getLogger('requests').setLevel(logging.WARNING)

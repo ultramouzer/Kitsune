@@ -1,6 +1,6 @@
 from flask import g, current_app
 from psycopg2_pool import ThreadSafeConnectionPool
-from psycopg2.extensions import make_dsn
+from psycopg2.extensions import make_dsn, connection
 from psycopg2.extras import RealDictCursor
 from os import getenv
 import traceback
@@ -34,7 +34,7 @@ def get_cursor():
         g.cursor = g.connection.cursor()
     return g.cursor
 
-def get_raw_conn():
+def get_raw_conn() -> connection:
     conn = pool.getconn()
     conn.cursor_factory = RealDictCursor
     return conn
