@@ -75,4 +75,4 @@ def encrypt_and_save_session_for_auto_import(service, key, contributor_id = None
     conn.commit()
     return_conn(conn)
     if contributor_id:
-        delete_keys_pattern(['saved_keys:' + contributor_id])
+        delete_keys_pattern(['saved_keys:' + str(contributor_id)])
