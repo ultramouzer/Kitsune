@@ -72,7 +72,7 @@ def index_artists():
     conn = get_raw_conn()
     cursor = conn.cursor()
 
-    cursor.execute('select "user", "service" from "posts" as "post" where not exists (select * from "lookup" where id = post.user) group by "user", "service"')
+    cursor.execute('select "user", "service" from "posts" as "post" where not exists (select * from "lookup" where id = post."user" and service = post.service) group by "user", "service"')
     results = cursor.fetchall()
 
     for post in results:
@@ -93,7 +93,8 @@ def index_artists():
                     "service": "fanbox"
                 }
             elif post["service"] == 'gumroad':
-                resp = requests.get('https://gumroad.com/' + post["user"], proxies=get_proxy()).text
+                scraper = cloudscraper.create_scraper()
+                resp = scraper.get('https://gumroad.com/' + post["user"], proxies=get_proxy()).text
                 soup = BeautifulSoup(resp, 'html.parser')
                 model = {
                     "id": post["user"],
@@ -101,7 +102,8 @@ def index_artists():
                     "service": "gumroad"
                 }
             elif post["service"] == 'subscribestar':
-                resp = requests.get('https://subscribestar.adult/' + post["user"], proxies=get_proxy()).text
+                scraper = cloudscraper.create_scraper()
+                resp = scraper.get('https://subscribestar.adult/' + post["user"], proxies=get_proxy()).text
                 soup = BeautifulSoup(resp, 'html.parser')
                 model = {
                     "id": post["user"],

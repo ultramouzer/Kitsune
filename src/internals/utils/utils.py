@@ -4,6 +4,7 @@ import hashlib
 import random
 import dateutil.parser
 import hashlib
+import os
 
 def get_value(d, key, default = None):
     try:
@@ -54,7 +55,7 @@ def parse_date(string, default = None):
 
 def get_hash_of_file(filename):
     with open(filename, 'rb') as f:
-        file_hash = hashlib.md5()
+        file_hash_raw = hashlib.sha256()
         for chunk in iter(lambda: f.read(8192), b''):
-            file_hash.update(chunk)
-    return file_hash.hexdigest()
+            file_hash_raw.update(chunk)
+        return file_hash_raw.hexdigest()

@@ -1,0 +1,19 @@
+# VSCode files
+.vscode
+*.code-workspace
+
+# virtual environment
+venv/
+
+# docker stuff
+.dockerignore
+Dockerfile*
+
+# python cache
+__pycache__
+
+# git stuff
+.git
+.gitignore
+.gitmodules
+.github

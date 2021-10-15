@@ -17,6 +17,7 @@ from flask import current_app
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, restore_from_backup, delete_backup
+from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.scrapper import create_scrapper_session
 from ..internals.utils.proxy import get_proxy
@@ -40,7 +41,7 @@ def strip_tags(html):
     s.feed(html)
     return s.get_data()
 
-def import_posts(import_id, key):
+def import_posts(import_id, key, contributor_id, allowed_to_auto_import, key_id):
     jar = requests.cookies.RequestsCookieJar()
     jar.set('auth_token', key)
     try:
@@ -58,19 +59,27 @@ def import_posts(import_id, key):
     if scraper_data == "":
         log(import_id, f"No active subscriptions or invalid key. No posts will be imported.")
         return #break early as there's nothing anyway
-        
-    while True: #While there's still more pages of posts, then we return the function anyways
+    
+    first_run = True
+    while True:
         soup = BeautifulSoup(scraper_data, 'html.parser')
-        # with open("bbbbb", "w+", encoding="utf8") as g:
-        #     g.write(scraper_data)
-        posts = soup.find_all("div", {"class": "post"}) #get the div of all the posts
+        posts = soup.find_all("div", {"class": "post"})
+        if (first_run and len(posts) == 0):
+            if (key_id):
+                kill_key(key_id)
+        else:
+            if (allowed_to_auto_import):
+                try:
+                    encrypt_and_save_session_for_auto_import('subscribestar', key, contributor_id = contributor_id)
+                    log(import_id, f"Your key was successfully enrolled in auto-import!", to_client = True)
+                except:
+                    log(import_id, f"An error occured while saving your key for auto-import.", 'exception')
+        
+        first_run = False
         for post in posts:
-            backup_path = None
             try:
                 post_id = post['data-id']
                 user_id = post.find("a", {"class": "post-avatar"})['href'].replace('/', '')
-                # file_directory = f"files/subscribestar/{user_id}/{post_id}"
-                attachments_directory = f"attachments/subscribestar/{user_id}/{post_id}"
 
                 if "is-locked" in post.find("div", {"class": "post-body"})['class']:
                     log(import_id, f"Skipping post {post_id} from user {user_id} as tier is too high")
@@ -83,9 +92,6 @@ def import_posts(import_id, key):
                 if post_exists('subscribestar', user_id, str(post_id)) and not post_flagged('subscribestar', user_id, str(post_id)):
                     log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
                     continue
-
-                if post_flagged('subscribestar', user_id, str(post_id)):
-                    backup_path = move_to_backup('subscribestar', user_id, str(post_id))
 
                 log(import_id, f"Starting import: {post_id}")
                 #post_data = post.find("div", {"class": "trix-content"})
@@ -125,30 +131,34 @@ def import_posts(import_id, key):
                         for attachment in json.loads(image_attachments['data-gallery']):
                             name = os.path.basename( urlparse(attachment['url']).path ) #gets the filename from the url
                             #download the file
-                            filename, _ = download_file(
-                                join(config.download_path, attachments_directory),
+                            reported_filename, hash_filename, _ = download_file(
                                 attachment['url'],
+                                'subscribestar',
+                                user_id,
+                                str(post_id),
                                 name = name
                             )
                             #add it to the list
                             post_model['attachments'].append({
-                                'name': name,
-                                'path': f'/{attachments_directory}/{filename}'
+                                'name': reported_filename,
+                                'path': hash_filename
                             })
 
                     if docs_attachments:
                         for attachment in docs_attachments.children:
                             name = os.path.basename( urlparse(attachment.div.a['href']).path ) #gets the filename from the url
                             #download the file
-                            filename, _ = download_file(
-                                join(config.download_path, attachments_directory),
+                            reported_filename, hash_filename, = download_file(
                                 attachment.div.a['href'],
+                                'subscribestar',
+                                user_id,
+                                str(post_id),
                                 name = name
                             )
                             #add it to the list
                             post_model['attachments'].append({
-                                'name': name,
-                                'path': f'/{attachments_directory}/{filename}'
+                                'name': reported_filename,
+                                'path': hash_filename
                             })
                             
                     
@@ -181,23 +191,18 @@ def import_posts(import_id, key):
                     requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
                 delete_artist_cache_keys('subscribestar', user_id)
 
-                if backup_path is not None:
-                    delete_backup(backup_path)
                 log(import_id, f"Finished importing {post_id} from user {user_id}", to_client = False)
 
 
             except Exception:
                 log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception')
-
-                if backup_path is not None:
-                    restore_from_backup('subscribestar', user_id, post_id, backup_path)
                 continue
         
         more = soup.find("div", {"class": "posts-more"})
         
         if more: #we get the next HTML ready, and it'll process the new
             try:
-                scraper = create_scrapper_session(useCloudscraper=False).get(
+                scraper = create_scrapper_session(useCloudscraper=True).get(
                     "https://www.subscribestar.com" + more['href'], #the next page
                     cookies=jar,
                     proxies=get_proxy()
@@ -212,9 +217,3 @@ def import_posts(import_id, key):
             log(import_id, f"Finished scanning for posts.")
             index_artists()
             return
-
-if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        import_posts(str(uuid.uuid4()), sys.argv[1])
-    else:
-        print('Argument required - Login token')

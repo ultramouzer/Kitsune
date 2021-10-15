@@ -13,6 +13,7 @@ from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..internals.utils.logger import log
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup
+from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.scrapper import create_scrapper_session
 from ..internals.utils.proxy import get_proxy
@@ -88,12 +89,9 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
     scraped_posts = BeautifulSoup(scraper_data, 'html.parser').select('div.post')
     user_id = None
     for post in scraped_posts:
-        backup_path = None
         try:
             user_id = fanclub_id
             post_id = post.select_one('a.link-block')['href'].lstrip('/posts/')
-            file_directory = f"files/fantia/{user_id}/{post_id}"
-            attachments_directory = f"attachments/fantia/{user_id}/{post_id}"
 
             if is_artist_dnp('fantia', user_id):
                 log(import_id, f"Skipping user {user_id} because they are in do not post list", to_client = True)
@@ -102,9 +100,6 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
             if post_exists('fantia', user_id, post_id) and not post_flagged('fantia', user_id, post_id):
                 log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
                 continue
-
-            if post_flagged('fantia', user_id, post_id):
-                backup_path = move_to_backup('fantia', user_id, post_id)
 
             try:
                 post_scraper = create_scrapper_session(useCloudscraper=False).get(
@@ -143,37 +138,43 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
             log(import_id, f"Starting import: {post_id} from user {user_id}")
 
             if post_data['post']['thumb']:
-                filename, _ = download_file(
-                    join(config.download_path, file_directory),
-                    post_data['post']['thumb']['original']
+                reported_filename, hash_filename, _ = download_file(
+                    post_data['post']['thumb']['original'],
+                    'fantia',
+                    user_id,
+                    post_id,
                 )
-                post_model['file']['name'] = filename
-                post_model['file']['path'] = f'/{file_directory}/{filename}'
+                post_model['file']['name'] = reported_filename
+                post_model['file']['path'] = hash_filename
 
             for content in post_data['post']['post_contents']:
                 if (content['visible_status'] != 'visible'):
                     continue
                 if content['category'] == 'photo_gallery':
                     for photo in content['post_content_photos']:
-                        filename, _ = download_file(
-                            join(config.download_path, attachments_directory),
+                        reported_filename, hash_filename, _ = download_file(
                             photo['url']['original'],
+                            'fantia',
+                            user_id,
+                            post_id,
                             cookies=jar
                         )
                         post_model['attachments'].append({
-                            'name': filename,
-                            'path': f'/{attachments_directory}/{filename}'
+                            'name': reported_filename,
+                            'path': hash_filename
                         })
                 elif content['category'] == 'file':
-                    filename, _ = download_file(
-                        join(config.download_path, attachments_directory),
+                    reported_filename, hash_filename, _ = download_file(
                         urljoin('https://fantia.jp/posts', content['download_uri']),
+                        'fantia',
+                        user_id,
+                        post_id,
                         name = content['filename'],
                         cookies=jar
                     )
                     post_model['attachments'].append({
-                        'name': content['filename'],
-                        'path': f'/{attachments_directory}/{filename}'
+                        'name': reported_filename,
+                        'path': hash_filename
                     })
                 elif content['category'] == 'embed':
                     post_model['content'] += f"""
@@ -187,14 +188,16 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
                 elif content['category'] == 'blog':
                     for op in json.loads(content['comment'])['ops']:
                         if type(op['insert']) is dict and op['insert'].get('fantiaImage'):
-                            filename, _ = download_file(
-                                join(config.download_path, attachments_directory),
+                            reported_filename, hash_filename, _ = download_file(
                                 urljoin('https://fantia.jp/', op['insert']['fantiaImage']['original_url']),
+                                'fantia',
+                                user_id,
+                                post_id,
                                 cookies=jar
                             )
                             post_model['attachments'].append({
-                                'name': filename,
-                                'path': f'/{attachments_directory}/{filename}'
+                                'name': reported_filename,
+                                'path': hash_filename
                             })
                 else:
                     log(import_id, f'Skipping content {content["id"]} from post {post_id}; unsupported type "{content["category"]}"', to_client = True)
@@ -229,14 +232,10 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
                 requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
             delete_artist_cache_keys('fantia', user_id)
 
-            if backup_path is not None:
-                delete_backup(backup_path)
             log(import_id, f"Finished importing {post_id} from user {user_id}", to_client=False)
         except Exception:
             log(import_id, f'Error importing post {post_id} from user {user_id}', 'exception')
-
-            if backup_path is not None:
-                restore_from_backup('fantia', user_id, post_id, backup_path)
+            
             continue
     
     if (scraped_posts):
@@ -254,12 +253,26 @@ def get_paid_fanclubs(import_id, jar):
     soup = BeautifulSoup(scraper_data, 'html.parser')
     return set(fanclub_link["href"].lstrip("/fanclubs/") for fanclub_link in soup.select("div.mb-5-children > div:nth-of-type(1) a[href^=\"/fanclubs\"]"))
 
-def import_posts(import_id, key):
+def import_posts(import_id, key, contributor_id, allowed_to_auto_import, key_id):
     jar = requests.cookies.RequestsCookieJar()
     jar.set('_session_id', key)
     
-    mode_switched = enable_adult_mode(import_id, jar)
-    fanclub_ids = get_paid_fanclubs(import_id, jar)
+    try:
+        mode_switched = enable_adult_mode(import_id, jar)
+        fanclub_ids = get_paid_fanclubs(import_id, jar)
+    except:
+        log(import_id, f"Error occurred during preflight. Stopping import.", 'exception')
+        if (key_id):
+            kill_key(key_id)
+        return
+    
+    if (allowed_to_auto_import):
+        try:
+            encrypt_and_save_session_for_auto_import('fantia', jar['_session_id'], contributor_id = contributor_id)
+            log(import_id, f"Your key was successfully enrolled in auto-import!", to_client = True)
+        except:
+            log(import_id, f"An error occured while saving your key for auto-import.", 'exception')
+    
     if len(fanclub_ids) > 0:
         for fanclub_id in fanclub_ids:
             log(import_id, f'Importing fanclub {fanclub_id}', to_client=True)
@@ -272,9 +285,3 @@ def import_posts(import_id, key):
 
     log(import_id, f"Finished scanning for posts.")
     index_artists()
-
-if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        import_posts(str(uuid.uuid4()), sys.argv[1])
-    else:
-        print('Argument required - Login token')

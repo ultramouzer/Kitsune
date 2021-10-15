@@ -23,6 +23,7 @@ from flask import current_app
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, dm_exists, delete_comment_cache_keys, delete_dm_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists
+from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.logger import log
@@ -673,26 +674,32 @@ def import_comments(url, key, post_id, user_id, import_id):
         log(import_id, f"Processing next page of comments for post {post_id}", to_client = False)
         import_comments(scraper_data['links']['next'], key, post_id, user_id, import_id)
 
-def import_campaign_page(url, key, import_id): 
+def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_auto_import = None, key_id = None): 
     try:
         scraper = create_scrapper_session().get(url, cookies = { 'session_id': key }, proxies=get_proxy())
         scraper_data = scraper.json()
         scraper.raise_for_status()
     except requests.HTTPError as e:
         log(import_id, f"Status code {e.response.status_code} when contacting Patreon API.", 'exception')
+        if (e.response.status_code == 401 and key_id):
+            kill_key(key_id)
         return
     except Exception:
         log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
         return
     
+    if (allowed_to_auto_import):
+        try:
+            encrypt_and_save_session_for_auto_import('patreon', key, contributor_id = contributor_id)
+            log(import_id, f"Your key was successfully enrolled in auto-import!", to_client = True)
+        except:
+            log(import_id, f"An error occured while saving your key for auto-import.", 'exception')
+    
     user_id = None
     for post in scraper_data['data']:
-        backup_path = None
         try:
             user_id = post['relationships']['user']['data']['id']
             post_id = post['id']
-            file_directory = f"files/{user_id}/{post_id}"
-            attachments_directory = f"attachments/{user_id}/{post_id}"
 
             if is_artist_dnp('patreon', user_id):
                 log(import_id, f"Skipping user {user_id} because they are in do not post list", to_client = True)
@@ -707,9 +714,6 @@ def import_campaign_page(url, key, import_id):
             if post_exists('patreon', user_id, post_id) and not post_flagged('patreon', user_id, post_id):
                 log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
                 continue
-
-            if post_flagged('patreon', user_id, post_id):
-                backup_path = move_to_backup('patreon', user_id, post_id)
 
             log(import_id, f"Starting import: {post_id} from user {user_id}")
 
@@ -735,12 +739,15 @@ def import_campaign_page(url, key, import_id):
                     path = urlparse(download_url).path
                     ext = splitext(path)[1]
                     fn = str(uuid.uuid4()) + ext
-                    filename, _ = download_file(
-                        join(config.download_path, 'inline'),
+                    _, hash_filename, _ = download_file(
                         download_url,
-                        name = fn
+                        'patreon',
+                        user_id,
+                        post_id,
+                        name = fn,
+                        inline = True
                     )
-                    post_model['content'] = post_model['content'].replace(download_url, f"/inline/{filename}")
+                    post_model['content'] = post_model['content'].replace(download_url, hash_filename)
 
             if post['attributes']['embed']:
                 post_model['embed']['subject'] = post['attributes']['embed']['subject']
@@ -748,23 +755,27 @@ def import_campaign_page(url, key, import_id):
                 post_model['embed']['url'] = post['attributes']['embed']['url']
 
             if post['attributes']['post_file']:
-                filename, _ = download_file(
-                    join(config.download_path, file_directory),
+                reported_filename, hash_filename, _ = download_file(
                     post['attributes']['post_file']['url'],
+                    'patreon',
+                    user_id,
+                    post_id,
                     name = post['attributes']['post_file']['name']
                 )
-                post_model['file']['name'] = post['attributes']['post_file']['name']
-                post_model['file']['path'] = f'/{file_directory}/{filename}'
+                post_model['file']['name'] = reported_filename
+                post_model['file']['path'] = hash_filename
 
             for attachment in post['relationships']['attachments']['data']:
-                filename, _ = download_file(
-                    join(config.download_path, attachments_directory),
+                reported_filename, hash_filename, _ = download_file(
                     f"https://www.patreon.com/file?h={post_id}&i={attachment['id']}",
+                    'patreon',
+                    user_id,
+                    post_id,
                     cookies = { 'session_id': key }
                 )
                 post_model['attachments'].append({
-                    'name': filename,
-                    'path': f'/{attachments_directory}/{filename}'
+                    'name': reported_filename,
+                    'path': hash_filename
                 })
 
             if post['relationships']['images']['data']:
@@ -772,28 +783,32 @@ def import_campaign_page(url, key, import_id):
                     for media in list(filter(lambda included: included['id'] == image['id'], scraper_data['included'])):
                         if media['attributes']['state'] != 'ready':
                             continue
-                        filename, _ = download_file(
-                            join(config.download_path, attachments_directory),
+                        reported_filename, hash_filename, _ = download_file(
                             media['attributes']['download_url'],
+                            'patreon',
+                            user_id,
+                            post_id,
                             name = media['attributes']['file_name']
                         )
                         post_model['attachments'].append({
-                            'name': filename,
-                            'path': f'/{attachments_directory}/{filename}'
+                            'name': reported_filename,
+                            'path': hash_filename
                         })
 
             if post['relationships']['audio']['data']:
                 for media in list(filter(lambda included: included['id'] == post['relationships']['audio']['data']['id'], scraper_data['included'])):
                     if media['attributes']['state'] != 'ready':
                         continue
-                    filename, _ = download_file(
-                        join(config.download_path, attachments_directory),
+                    reported_filename, hash_filename, _ = download_file(
                         media['attributes']['download_url'],
+                        'patreon',
+                        user_id,
+                        post_id,
                         name = media['attributes']['file_name']
                     )
                     post_model['attachments'].append({
-                        'name': filename,
-                        'path': f'/{attachments_directory}/{filename}'
+                        'name': reported_filename,
+                        'path': hash_filename
                     })
 
             post_model['embed'] = json.dumps(post_model['embed'])
@@ -824,13 +839,9 @@ def import_campaign_page(url, key, import_id):
                 requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
             delete_artist_cache_keys('patreon', user_id)
 
-            if backup_path is not None:
-                delete_backup(backup_path)
             log(import_id, f"Finished importing {post_id} from user {user_id}", to_client=False)
         except Exception as e:
             log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception', True)
-            if backup_path is not None:
-                restore_from_backup('patreon', user_id, post_id, backup_path)
             continue
     
     if 'links' in scraper_data and 'next' in scraper_data['links']:
@@ -840,7 +851,7 @@ def import_campaign_page(url, key, import_id):
         log(import_id, f"Finished scanning for posts.")
         index_artists()
 
-def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id):
+def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id, allowed_to_auto_import, key_id):
     if (allowed_to_scrape_dms):
         log(import_id, f"Importing DMs...", to_client = True)
         import_dms(key, import_id, contributor_id)
@@ -849,12 +860,6 @@ def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id):
     if len(campaign_ids) > 0:
         for campaign_id in campaign_ids:
             log(import_id, f"Importing campaign {campaign_id}", to_client = True)
-            import_campaign_page(posts_url + str(campaign_id), key, import_id)
+            import_campaign_page(posts_url + str(campaign_id), key, import_id, contributor_id = contributor_id, allowed_to_auto_import = allowed_to_auto_import, key_id = key_id)
     else:
         log(import_id, f"No active subscriptions or invalid key. No posts will be imported.", to_client = True)
-
-if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        import_posts(str(uuid.uuid4()), sys.argv[1])
-    else:
-        print('Argument required - Login token')

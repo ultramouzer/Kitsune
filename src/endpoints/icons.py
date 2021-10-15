@@ -9,7 +9,7 @@ from os import makedirs
 from os.path import exists, join
 from bs4 import BeautifulSoup
 
-from ..internals.utils.download import download_file
+from ..internals.utils.download import download_branding
 from ..internals.utils.proxy import get_proxy
 
 icons = Blueprint('icons', __name__)
@@ -23,7 +23,7 @@ def import_icon(service, user):
                 scraper = cloudscraper.create_scraper().get('https://api.patreon.com/user/' + user, proxies=get_proxy())
                 data = scraper.json()
                 scraper.raise_for_status()
-                download_file(
+                download_branding(
                     join(config.download_path, 'icons', service),
                     data['included'][0]['attributes']['avatar_photo_url'] if data.get('included') else data['data']['attributes']['image_url'],
                     name = user
@@ -33,7 +33,7 @@ def import_icon(service, user):
                 data = scraper.json()
                 scraper.raise_for_status()
                 if data['body']['user']['iconUrl']:
-                    download_file(
+                    download_branding(
                         join(config.download_path, 'icons', service),
                         data['body']['user']['iconUrl'],
                         name = user
@@ -41,23 +41,25 @@ def import_icon(service, user):
                 else:
                     raise IconsException()
             elif service == 'subscribestar':
-                scraper = requests.get('https://subscribestar.adult/' + user, proxies=get_proxy())
-                data = scraper.text
-                scraper.raise_for_status()
+                scraper = cloudscraper.create_scraper()
+                resp = scraper.get('https://subscribestar.adult/' + user, proxies=get_proxy())
+                data = resp.text
+                resp.raise_for_status()
                 soup = BeautifulSoup(data, 'html.parser')
-                download_file(
+                download_branding(
                     join(config.download_path, 'icons', service),
                     soup.find('div', class_='profile_main_info-userpic').contents[0]['src'],
                     name = user
                 )
             elif service == 'gumroad':
-                scraper = requests.get('https://gumroad.com/' + user, proxies=get_proxy())
-                data = scraper.text
-                scraper.raise_for_status()
+                scraper = cloudscraper.create_scraper()
+                resp = scraper.get('https://gumroad.com/' + user, proxies=get_proxy())
+                data = resp.text
+                resp.raise_for_status()
                 soup = BeautifulSoup(data, 'html.parser')
                 sheet = cssutils.css.CSSStyleSheet()
                 sheet.add("dummy_selector { %s }" % soup.select_one('.profile-picture-medium.js-profile-picture').get('style'))
-                download_file(
+                download_branding(
                     join(config.download_path, 'icons', service),
                     list(cssutils.getUrls(sheet))[0],
                     name = user
@@ -67,7 +69,7 @@ def import_icon(service, user):
                 data = scraper.json()
                 scraper.raise_for_status()
                 if data['fanclub']['icon']:
-                    download_file(
+                    download_branding(
                         join(config.download_path, 'icons', service),
                         data['fanclub']['icon']['main'],
                         name = user
