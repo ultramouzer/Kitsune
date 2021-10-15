@@ -26,4 +26,9 @@ CMD uwsgi --http=0.0.0.0:80 \
     --listen 40000 \
     --disable-logging \
     --log-5xx \
+    --harakiri 60 \
+    --max-requests 1000 \
+    --max-worker-lifetime 3600 \
+    --reload-on-rss 2048 \
+    --worker-reload-mercy 60 \
     --enable-threads
