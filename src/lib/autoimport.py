@@ -65,7 +65,7 @@ def encrypt_and_save_session_for_auto_import(service, key, contributor_id = None
         'discord_channel_ids': discord_channel_ids,
         'encrypted_key': encrypted_key,
         'contributor_id': int(contributor_id) if contributor_id else None,
-        'hash': hashlib.sha256(key.encode('utf-8') + config.salt).hexdigest()
+        'hash': hashlib.sha256((key + config.salt).encode('utf-8')).hexdigest()
     }
     query = "INSERT INTO saved_session_keys_with_hashes ({fields}) VALUES ({values}) ON CONFLICT DO NOTHING".format(
         fields = ','.join(model.keys()),
