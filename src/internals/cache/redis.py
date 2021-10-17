@@ -30,7 +30,7 @@ def delete_keys_pattern(patterns):
             redis.delete(*keys)
 
 def delete_keys(pattern):
-    redis = get_conn()
+    redis = get_redis()
     keys = redis.keys(pattern)
     if (len(keys)):
         redis.delete(*keys)
