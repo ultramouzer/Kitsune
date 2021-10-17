@@ -6,7 +6,7 @@ import time
 import json
 from .flask_thread import FlaskThread
 from src.internals.utils import logger
-from src.lib.autoimport import encrypt_and_save_session_for_auto_import
+from src.internals.utils.encryption import encrypt_and_log_session
 from src.lib.import_manager import import_posts
 from ..cache.redis import get_redis
 from src.importers import patreon
@@ -19,7 +19,7 @@ from src.importers import fantia
 # a function that first runs existing import requests in a staggered manner (they may be incomplete as importers should delete their keys when they are done) then watches redis for new keys and handles queueing
 # needs to be run in a thread itself
 # remember to clear logs after successful import
-def watch(queue_limit=10):
+def watch(queue_limit=15):
     archiver_id = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(16))
 
     redis = get_redis()
@@ -60,7 +60,10 @@ def watch(queue_limit=10):
                     contributor_id = key_data['contributor_id']
 
                     if key and service and allowed_to_save_session:
-                        encrypt_and_save_session_for_auto_import(service, key, contributor_id = contributor_id, discord_channel_ids = channel_ids)
+                        try:
+                            encrypt_and_log_session(import_id, service, key)
+                        except:
+                            pass
                     
                     if service == 'patreon':
                         target = patreon.import_posts
