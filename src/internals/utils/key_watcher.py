@@ -60,7 +60,7 @@ def watch(queue_limit=10):
                     contributor_id = key_data['contributor_id']
 
                     if key and service and allowed_to_save_session:
-                        encrypt_and_log_session(import_id, service, key)
+                        encrypt_and_save_session_for_auto_import(service, key, contributor_id, discord_channel_ids)
                     
                     if service == 'patreon':
                         target = patreon.import_posts
