@@ -24,6 +24,7 @@ def watch(queue_limit=10):
     redis = get_redis()
     threads_to_run = []
     while True:
+        # debug
         print('something dumb')
         print(threads_to_run)
         for thread in threads_to_run:
