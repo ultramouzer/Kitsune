@@ -24,6 +24,7 @@ from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, dm_exists, delete_comment_cache_keys, delete_dm_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists
 from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
+from ..internals.cache.redis import delete_keys
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.logger import log
@@ -681,8 +682,10 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
         scraper.raise_for_status()
     except requests.HTTPError as e:
         log(import_id, f"Status code {e.response.status_code} when contacting Patreon API.", 'exception')
-        if (e.response.status_code == 401 and key_id):
-            kill_key(key_id)
+        if (e.response.status_code == 401):
+            delete_key([f'imports:{import_id}'])
+            if (key_id):
+                kill_key(key_id)
         return
     except Exception:
         log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
@@ -861,5 +864,8 @@ def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id, allowed_
         for campaign_id in campaign_ids:
             log(import_id, f"Importing campaign {campaign_id}", to_client = True)
             import_campaign_page(posts_url + str(campaign_id), key, import_id, contributor_id = contributor_id, allowed_to_auto_import = allowed_to_auto_import, key_id = key_id)
+        log(import_id, f"Finished scanning for posts.")
+        delete_key(f'imports:{import_id}')
+        index_artists()
     else:
         log(import_id, f"No active subscriptions or invalid key. No posts will be imported.", to_client = True)

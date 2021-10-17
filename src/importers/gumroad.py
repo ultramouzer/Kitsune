@@ -17,6 +17,7 @@ from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup
 from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
+from ..internals.cache.redis import delete_keys
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.logger import log
@@ -38,6 +39,7 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
     
     if (scraper_data['total'] > 100000):
         log(import_id, f"Can't log in; is your session key correct?")
+        delete_key([f'imports:{import_id}'])
         if (key_id):
             kill_key(key_id)
         return
@@ -196,4 +198,5 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
         import_posts(import_id, key, offset=next_offset)
     else:
         log(import_id, f"Finished scanning for posts.")
+        delete_key([f'imports:{import_id}'])
         index_artists()

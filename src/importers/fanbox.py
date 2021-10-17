@@ -13,6 +13,7 @@ from flask import current_app
 
 from PixivUtil2.PixivModelFanbox import FanboxArtist, FanboxPost
 
+from ..internals.cache.redis import delete_keys
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, delete_comment_cache_keys
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists
@@ -107,10 +108,12 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
         )
         scraper_data = scraper.json()
         scraper.raise_for_status()
-    except requests.HTTPError as exc:
+    except requests.HTTPError as e:
         log(import_id, f'HTTP error when contacting Fanbox API ({url}). Stopping import.', 'exception')
-        if (exc.response.status_code == 401 and key_id):
-            kill_key(key_id)
+        if (e.response.status_code == 401):
+            delete_key([f'imports:{import_id}'])
+            if (key_id):
+                kill_key(key_id)
         return
 
     if (allowed_to_auto_import and url == 'https://api.fanbox.cc/post.listSupporting?limit=50'):
@@ -279,6 +282,7 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
             import_posts(import_id, key, url = next_url)
         else:
             log(import_id, f'Finished scanning for posts')
+            delete_key([f'imports:{import_id}'])
             index_artists()
     else:
         log(import_id, f'No posts detected.')

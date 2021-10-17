@@ -11,6 +11,7 @@ from os.path import join, splitext
 import config
 import json
 
+from ..internals.cache.redis import delete_keys
 from ..internals.utils.logger import log
 from ..internals.utils.scrapper import create_scrapper_session
 from ..internals.utils.proxy import get_proxy
@@ -26,9 +27,11 @@ def test_key_for_auto_import (import_id, key, channel_ids_str, contributor_id, a
     try:
         scraper = create_scrapper_session().get('https://discord.com/api/v9/users/@me/library', headers = { 'authorization': key, 'user-agent': userAgent }, proxies=get_proxy())
         scraper.raise_for_status()
-    except requests.HTTPError as exc:
-        if (exc.response.status_code == 401 and key_id):
-            kill_key(key_id)
+    except requests.HTTPError as e:
+        if (e.response.status_code == 401):
+            delete_key([f'imports:{import_id}'])
+            if (key_id):
+                kill_key(key_id)
         return
     
     if (allowed_to_auto_import):
@@ -187,3 +190,5 @@ def import_posts(import_id, key, channel_ids_str, contributor_id, allowed_to_aut
             import_channel(channel_id, import_id, key)
     else:
         log(import_id, f"No channels has been supplied. No posts will be imported.", to_client = True)
+    
+    delete_key([f'imports:{import_id}'])

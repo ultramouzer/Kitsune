@@ -6,8 +6,9 @@ import time
 import json
 from .flask_thread import FlaskThread
 from src.internals.utils import logger
+from src.lib.autoimport import encrypt_and_save_session_for_auto_import
 from src.lib.import_manager import import_posts
-from ..cache.redis import get_redis, deserialize_dict
+from ..cache.redis import get_redis, dele
 from src.importers import patreon
 from src.importers import fanbox
 from src.importers import subscribestar
@@ -24,9 +25,6 @@ def watch(queue_limit=10):
     redis = get_redis()
     threads_to_run = []
     while True:
-        # debug
-        print('something dumb')
-        print(threads_to_run)
         for thread in threads_to_run:
             if not thread.is_alive():
                 threads_to_run.remove(thread)
@@ -61,6 +59,9 @@ def watch(queue_limit=10):
                     channel_ids = key_data['channel_ids']
                     contributor_id = key_data['contributor_id']
 
+                    if key and service and allowed_to_save_session:
+                        encrypt_and_log_session(import_id, service, key)
+                    
                     if service == 'patreon':
                         target = patreon.import_posts
                         args = (key, allowed_to_scrape_dms, contributor_id, allowed_to_auto_import, None)

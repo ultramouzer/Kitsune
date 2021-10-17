@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 from os.path import join
 from bs4 import BeautifulSoup
 
+from ..internals.cache.redis import delete_keys
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..internals.utils.logger import log
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys
@@ -262,6 +263,7 @@ def import_posts(import_id, key, contributor_id, allowed_to_auto_import, key_id)
         fanclub_ids = get_paid_fanclubs(import_id, jar)
     except:
         log(import_id, f"Error occurred during preflight. Stopping import.", 'exception')
+        delete_key([f'imports:{import_id}'])
         if (key_id):
             kill_key(key_id)
         return
@@ -284,4 +286,5 @@ def import_posts(import_id, key, contributor_id, allowed_to_auto_import, key_id)
         disable_adult_mode(import_id, jar)
 
     log(import_id, f"Finished scanning for posts.")
+    delete_key([f'imports:{import_id}'])
     index_artists()

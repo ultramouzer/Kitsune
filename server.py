@@ -11,8 +11,9 @@ from src.endpoints.icons import icons
 from src.endpoints.banners import banners
 from src.internals.database import database
 from src.internals.cache import redis
-
+from src.internals.utils.flask_thread import FlaskThread
 from src.lib.artist import index_artists
+from src.internals.utils import key_watcher
 from src.internals.database.database import get_raw_conn
 
 app = Flask(__name__)
