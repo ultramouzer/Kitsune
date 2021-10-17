@@ -8,7 +8,7 @@ from .flask_thread import FlaskThread
 from src.internals.utils import logger
 from src.lib.autoimport import encrypt_and_save_session_for_auto_import
 from src.lib.import_manager import import_posts
-from ..cache.redis import get_redis, dele
+from ..cache.redis import get_redis
 from src.importers import patreon
 from src.importers import fanbox
 from src.importers import subscribestar
