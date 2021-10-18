@@ -39,7 +39,7 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
     
     if (scraper_data['total'] > 100000):
         log(import_id, f"Can't log in; is your session key correct?")
-        delete_key([f'imports:{import_id}'])
+        delete_keys([f'imports:{import_id}'])
         if (key_id):
             kill_key(key_id)
         return

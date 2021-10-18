@@ -29,7 +29,7 @@ def test_key_for_auto_import (import_id, key, channel_ids_str, contributor_id, a
         scraper.raise_for_status()
     except requests.HTTPError as e:
         if (e.response.status_code == 401):
-            delete_key([f'imports:{import_id}'])
+            delete_keys([f'imports:{import_id}'])
             if (key_id):
                 kill_key(key_id)
         return

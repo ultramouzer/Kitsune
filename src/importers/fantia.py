@@ -263,7 +263,7 @@ def import_posts(import_id, key, contributor_id, allowed_to_auto_import, key_id)
         fanclub_ids = get_paid_fanclubs(import_id, jar)
     except:
         log(import_id, f"Error occurred during preflight. Stopping import.", 'exception')
-        delete_key([f'imports:{import_id}'])
+        delete_keys([f'imports:{import_id}'])
         if (key_id):
             kill_key(key_id)
         return

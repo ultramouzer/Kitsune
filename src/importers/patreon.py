@@ -683,7 +683,7 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
     except requests.HTTPError as e:
         log(import_id, f"Status code {e.response.status_code} when contacting Patreon API.", 'exception')
         if (e.response.status_code == 401):
-            delete_key([f'imports:{import_id}'])
+            delete_keys([f'imports:{import_id}'])
             if (key_id):
                 kill_key(key_id)
         return
@@ -868,4 +868,5 @@ def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id, allowed_
         delete_key(f'imports:{import_id}')
         index_artists()
     else:
+        delete_keys([f'imports:{import_id}'])
         log(import_id, f"No active subscriptions or invalid key. No posts will be imported.", to_client = True)
