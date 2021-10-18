@@ -29,11 +29,11 @@ def delete_keys_pattern(patterns):
         if (len(keys)):
             redis.delete(*keys)
 
-def delete_keys(pattern):
-    redis = get_redis()
-    keys = redis.keys(pattern)
-    if (len(keys)):
-        redis.delete(*keys)
+# def delete_keys(pattern):
+#     redis = get_redis()
+#     keys = redis.keys(pattern)
+#     if (len(keys)):
+#         redis.delete(*keys)
 
 def serialize_dict(data):
     to_serialize = {
