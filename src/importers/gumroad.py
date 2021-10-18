@@ -198,5 +198,5 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
         import_posts(import_id, key, offset=next_offset)
     else:
         log(import_id, f"Finished scanning for posts.")
-        delete_key([f'imports:{import_id}'])
+        delete_keys([f'imports:{import_id}'])
         index_artists()

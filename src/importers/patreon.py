@@ -865,7 +865,7 @@ def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id, allowed_
             log(import_id, f"Importing campaign {campaign_id}", to_client = True)
             import_campaign_page(posts_url + str(campaign_id), key, import_id, contributor_id = contributor_id, allowed_to_auto_import = allowed_to_auto_import, key_id = key_id)
         log(import_id, f"Finished scanning for posts.")
-        delete_key(f'imports:{import_id}')
+        delete_keys([f'imports:{import_id}'])
         index_artists()
     else:
         delete_keys([f'imports:{import_id}'])

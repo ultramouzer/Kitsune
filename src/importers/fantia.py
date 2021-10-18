@@ -286,5 +286,5 @@ def import_posts(import_id, key, contributor_id, allowed_to_auto_import, key_id)
         disable_adult_mode(import_id, jar)
 
     log(import_id, f"Finished scanning for posts.")
-    delete_key([f'imports:{import_id}'])
+    delete_keys([f'imports:{import_id}'])
     index_artists()

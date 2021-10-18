@@ -191,4 +191,4 @@ def import_posts(import_id, key, channel_ids_str, contributor_id, allowed_to_aut
     else:
         log(import_id, f"No channels has been supplied. No posts will be imported.", to_client = True)
     
-    delete_key([f'imports:{import_id}'])
+    delete_keys([f'imports:{import_id}'])
