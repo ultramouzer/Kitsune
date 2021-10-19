@@ -17,7 +17,8 @@ Assuming you are in the `archiver` folder:
 2. Create a virtual environment:
     ```sh
     pip install virtualenv # install the package if it's not installed
-    virtualenv venv
+    virtualenv --upgrade-embed-wheels # makes it easier to manage python versions
+    virtualenv --python 3.8 venv
     ```
 3. Activate the virtual environment:
     ```sh
