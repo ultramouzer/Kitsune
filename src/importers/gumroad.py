@@ -10,7 +10,7 @@ import datetime
 from bs4 import BeautifulSoup
 from os.path import join
 from os import makedirs
-
+from bs4 import BeautifulSoup
 from flask import current_app
 
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
@@ -27,22 +27,25 @@ from ..internals.utils.scrapper import create_scrapper_session
 def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import = None, key_id = None, offset = 1):
     try:
         scraper = create_scrapper_session().get(
-            f"https://gumroad.com/discover_search?from={offset}&user_purchases_only=true",
+            "https://app.gumroad.com/library",
             cookies = { '_gumroad_app_session': key },
             proxies=get_proxy()
         )
-        scraper_data = scraper.json()
+        scraper_data = scraper.text
         scraper.raise_for_status()
     except requests.HTTPError:
         log(import_id, f'Status code {scraper_data.status_code} when contacting Gumroad API.', 'exception')
         return
     
-    if (scraper_data['total'] > 100000):
+    soup = BeautifulSoup(scraper_data, 'html.parser')
+    gumroad_data = soup.select_one('[data-react-class=LibraryPage]')
+    if not gumroad_data:
         log(import_id, f"Can't log in; is your session key correct?")
         delete_keys([f'imports:{import_id}'])
         if (key_id):
             kill_key(key_id)
         return
+    library_data = json.loads(gumroad_data['data-react-props'])
 
     if (allowed_to_auto_import):
         try:
@@ -51,37 +54,41 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
         except:
             log(import_id, f"An error occured while saving your key for auto-import.", 'exception')
     
-    soup = BeautifulSoup(scraper_data['products_html'], 'html.parser')
-    products = soup.find_all(class_='product-card')
+    # users = {}
+    # for user_info_list in scraper_data['creator_counts'].keys():
+    #     parsed_user_info_list = json.loads(user_info_list) # (username, display name, ID), username can be null
+    #     users[parsed_user_info_list[1]] = parsed_user_info_list[2]
 
-    users = {}
-    for user_info_list in scraper_data['creator_counts'].keys():
-        parsed_user_info_list = json.loads(user_info_list) # (username, display name, ID), username can be null
-        users[parsed_user_info_list[1]] = parsed_user_info_list[2]
-
-    for product in products:
+    for product in library_data['results']:
         try:
-            post_id = product['data-permalink']
-            user_id = None
+            post_id = None # get from data-permalink in element with id download-landing-page on download page
+            user_id = product['product']['creator_id']
             cover_url = None
             purchase_download_url = None
 
-            properties_element = product.find('div', {'data-react-class':'Product/LibraryCard'})
-            react_props = json.loads(properties_element['data-react-props'])
-            if not 'purchase' in react_props:
-                log(import_id, f"Skipping post {post_id} from user {user_id} because it has no purchase data")
+            # properties_element = product.find('div', {'data-react-class':'Product/LibraryCard'})
+            # react_props = json.loads(properties_element['data-react-props'])
+            if not product.get('purchase'):
+                log(import_id, f"Skipping post from user {user_id} because it has no purchase data")
                 continue
-            elif react_props['purchase']['is_archived']:
-                # this check is redundant, but better safe than sorry:
+            elif product['purchase']['is_archived']:
                 # archived products may contain sensitive data such as a watermark with an e-mail on it
-                log(import_id, f"Skipping post {post_id} from user {user_id} because it is archived")
+                log(import_id, f"Skipping post from user {user_id} because it is archived")
                 continue
 
-            react_props_product = react_props['product']
-            title = react_props_product['name']
-            creator_name = react_props_product['creator']['name']
-            user_id = users[creator_name]
-            purchase_download_url = react_props['purchase']['download_url']
+            # react_props_product = react_props['product']
+            title = product['product']['name']
+            creator_name = product['product']['creator']['name']
+            purchase_download_url = product['purchase']['download_url']
+
+            scraper = create_scrapper_session().get(
+                purchase_download_url,
+                cookies = { '_gumroad_app_session': key },
+                proxies=get_proxy()
+            )
+            scraper_data = scraper.text
+            scraper_soup = BeautifulSoup(scraper_data, 'html.parser')
+            post_id = scraper_soup.select_one('[id=download-landing-page]')['data-permalink']
 
             if is_artist_dnp('gumroad', user_id):
                 log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
@@ -108,23 +115,14 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
                 'attachments': []
             }
 
-            if 'main_cover_id' in react_props_product:
-                main_cover_id = react_props_product['main_cover_id']
-                for cover in react_props_product['covers']:
+            if 'main_cover_id' in product:
+                main_cover_id = product['main_cover_id']
+                for cover in product['covers']:
                     if cover['id'] == main_cover_id:
                         cover_url = get_value(cover, 'original_url') or cover['url']
 
-
-            scraper3 = create_scrapper_session().get(
-                purchase_download_url,
-                cookies = { '_gumroad_app_session': key },
-                proxies=get_proxy()
-            )
-            scraper_data3 = scraper3.text
-            soup3 = BeautifulSoup(scraper_data3, 'html.parser')
-
             try:
-                download_data = json.loads(soup3.select_one('div[data-react-class="DownloadPage/FileList"]')['data-react-props'])
+                download_data = json.loads(scraper_soup.select_one('div[data-react-class="DownloadPage/FileList"]')['data-react-props'])
             except:
                 download_data = {
                   "content_items": []
@@ -191,12 +189,3 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
         except Exception as e:
             log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception')
             continue
-
-    if len(products):
-        next_offset = offset + scraper_data['result_count']
-        log(import_id, f'Finished processing offset {offset}. Processing offset {next_offset}')
-        import_posts(import_id, key, offset=next_offset)
-    else:
-        log(import_id, f"Finished scanning for posts.")
-        delete_keys([f'imports:{import_id}'])
-        index_artists()
