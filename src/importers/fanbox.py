@@ -22,7 +22,7 @@ from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.utils import get_import_id
 from ..internals.utils.logger import log
 from ..internals.utils.scrapper import create_scrapper_session
-
+#csvsdv
 def import_comment(comment, user_id, post_id, import_id):
     commenter_id = comment['user']['userId']
     comment_id = comment['id']
@@ -129,7 +129,7 @@ def get_subscribed_ids(import_id, key, url = 'https://api.fanbox.cc/post.listSup
             except Exception as e:
                 log(import_id, f"Error while retrieving one of the campaign ids", 'exception', True)
                 continue
-
+    log(import_id, 'Successfully gotten subscriptions')
     return campaign_ids
 
 
@@ -161,8 +161,6 @@ def get_cancelled_ids(import_id, key, url = 'https://api.fanbox.cc/payment.listP
                 pay_date = dateutil.parser.parse(bill['paymentDatetime'])
                 if pay_date.month == today_date.month :
                     bills.append(bill)
-                # unknown if fanbox allows user to view previous months works if paid within 7 days like patreon.
-                # if fanbox has this functionality, further implementation will be necessary.
 
             except Exception as e:
                 log(import_id, f"Error while parsing one of the bills", 'exception', True)
@@ -172,7 +170,7 @@ def get_cancelled_ids(import_id, key, url = 'https://api.fanbox.cc/payment.listP
     if len(bills) > 0:
         for bill in bills:
             try:
-                campaign_id = bill['creator']['user']['userID']
+                campaign_id = bill['creator']['user']['userId']
                 if not campaign_id in campaign_ids:
                     campaign_ids.add(campaign_id)
             except Exception as e:
@@ -183,8 +181,8 @@ def get_cancelled_ids(import_id, key, url = 'https://api.fanbox.cc/payment.listP
 
 # most of this is copied from the old import_posts. 
 # now it uses a different url specific to a single creator instead of api.fanbox.cc/post.listSupporting.
-def import_posts_via_id(import_id, key):
-    url = 'https://api.fanbox.cc/post.listCreator?userId={}&limit=50'.format(import_id)
+def import_posts_via_id(import_id, key, campaign_id): 
+    url = 'https://api.fanbox.cc/post.listCreator?userId={}&limit=50'.format(campaign_id)
     try:
         scraper = create_scrapper_session().get(
             url,
@@ -198,7 +196,6 @@ def import_posts_via_id(import_id, key):
     except requests.HTTPError:
         log(import_id, f'HTTP error when contacting Fanbox API ({url}). Stopping import.', 'exception')
         return
-
     user_id = None
     posts_imported = []
     artists_with_posts_imported = []
@@ -210,7 +207,7 @@ def import_posts_via_id(import_id, key):
             post_id = post['id']
 
             parsed_post = FanboxPost(post_id, None, post)
-            if parsed_post.is_restricted:
+            if parsed_post.is_restricted: #this is an issue for canceled ids?
                 log(import_id, f'Skipping post {post_id} from user {user_id} because post is from higher subscription tier')
                 continue
             try:
@@ -220,16 +217,15 @@ def import_posts_via_id(import_id, key):
                 if is_artist_dnp('fanbox', user_id):
                     log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
                     continue
-
                 import_comments(key, post_id, user_id, import_id)
 
                 if post_exists('fanbox', user_id, post_id) and not post_flagged('fanbox', user_id, post_id):
+                    print(0)
                     log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
                     continue
-
+                
                 if post_flagged('fanbox', user_id, post_id):
                     backup_path = move_to_backup('fanbox', user_id, post_id)
-
                 log(import_id, f"Starting import: {post_id} from user {user_id}")
 
                 post_model = {
@@ -363,42 +359,40 @@ def import_posts_via_id(import_id, key):
                     restore_from_backup('fanbox', user_id, post_id, backup_path)
                 continue
         
-        next_url = scraper_data['body'].get('nextUrl')
-        if next_url:
-            log(import_id, f'Finished processing page ({url}). Processing {next_url}')
-            import_posts(import_id, key, next_url)
-        else:
-            log(import_id, f'Finished scanning for posts')
-            index_artists()
+        ##next_url = scraper_data['body'].get('nextUrl')
+        ##if next_url:
+        ##    log(import_id, f'Finished processing page ({url}). Processing {next_url}')
+        ##    import_posts(import_id, key, next_url) #this is an issue. old code needs to be rewritten
+        ##else:
+        ##    log(import_id, f'Finished scanning for posts')
+        ##    index_artists()
+        # this block's functionality has been moved to import_posts()
     else:
         log(import_id, f'No posts detected.')
 
 def import_posts(import_id, key):
     # this block creates a list of campaign ids of both supported and canceled subscriptions within the month
-    print("running import_posts()")
-    print("sadasd")
     subscribed_ids = get_subscribed_ids(import_id, key)
     cancelled_ids = get_cancelled_ids(import_id, key)
     ids = set()
     if len(subscribed_ids) > 0:
         ids.update(subscribed_ids)
-        log("added active ids")
     if len(cancelled_ids) > 0:
         ids.update(cancelled_ids)
-        log("added canceled ids")
     campaign_ids = list(ids)
 
     # this block uses the list of ids to import posts
     if len(campaign_ids) > 0:
         for campaign_id in campaign_ids:
-            import_posts_via_id(campaign_id, key)
+            import_posts_via_id(import_id, key, campaign_id)
+            log(import_id, f'Finished processing user {campaign_id}')
+        log(import_id, f'Finished scanning for posts')
+        index_artists()
     else:
         log(import_id, f"No active subscriptions or invalid key. No posts will be imported.", to_client = True)
 
 if __name__ == '__main__':
-    print('start')
     if len(sys.argv) > 1:
-        print('start2')
         key = sys.argv[1]
         import_id = get_import_id(key)
         import_posts(import_id, sys.argv[1])
