@@ -20,10 +20,8 @@ ENV LANG=C.UTF-8
 CMD uwsgi --http=0.0.0.0:80 \
     --manage-script-name \
     --mount /=server:app \
-    --processes %k \
-    --threads 1 \
+    --processes 100 \
     --master \
     --listen 40000 \
     --disable-logging \
-    --log-5xx \
-    --enable-threads
+    --log-5xx
