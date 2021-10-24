@@ -25,4 +25,4 @@ CMD uwsgi --http-socket=0.0.0.0:80 \
     --master \
     --listen 40000 \
     --enable-threads \
-    --req-logger file:/tmp/logs/uwsgi.log
+    --req-logger "file:/tmp/logs/uwsgi.log"
