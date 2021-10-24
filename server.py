@@ -1,5 +1,4 @@
 from flask import Flask, g
-from multiprocessing import Process
 from yoyo import read_migrations
 from yoyo import get_backend
 import logging
@@ -12,7 +11,7 @@ from src.endpoints.icons import icons
 from src.endpoints.banners import banners
 from src.internals.database import database
 from src.internals.cache import redis
-from src.internals.utils.flask_thread import FlaskThread
+from src.internals.utils.flask_thread import FlaskThread, FlaskProcess
 from src.lib.artist import index_artists
 from src.internals.utils import key_watcher
 from src.internals.database.database import get_raw_conn
@@ -39,7 +38,8 @@ if uwsgi.worker_id() == 0:
     with backend.lock():
         backend.apply_migrations(backend.to_apply(migrations))
     index_artists()
-    Process(target=key_watcher.watch).start()
+    with app.app_context():
+        FlaskProcess(target=key_watcher.watch).start()
 
 @app.teardown_appcontext
 def close(e):
