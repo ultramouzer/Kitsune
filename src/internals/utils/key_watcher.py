@@ -4,7 +4,6 @@ import random
 import string
 import time
 import json
-import logging
 from .flask_thread import FlaskThread
 from src.internals.utils import logger
 from src.internals.utils.encryption import encrypt_and_log_session
@@ -16,10 +15,6 @@ from src.importers import subscribestar
 from src.importers import gumroad
 from src.importers import discord
 from src.importers import fantia
-
-logging.basicConfig(filename='kemono_watcher.log', level=logging.DEBUG)
-logging.getLogger('requests').setLevel(logging.WARNING)
-logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 # a function that first runs existing import requests in a staggered manner (they may be incomplete as importers should delete their keys when they are done) then watches redis for new keys and handles queueing
 # needs to be run in a thread itself

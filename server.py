@@ -4,7 +4,6 @@ from yoyo import get_backend
 import logging
 import uwsgi
 import config
-import multiprocessing_logging
 
 from configs.derived_vars import is_development
 from src.endpoints.api import api
@@ -12,7 +11,7 @@ from src.endpoints.icons import icons
 from src.endpoints.banners import banners
 from src.internals.database import database
 from src.internals.cache import redis
-from src.internals.utils.flask_thread import FlaskThread, FlaskProcess
+from src.internals.utils.flask_thread import FlaskThread
 from src.lib.artist import index_artists
 from src.internals.utils import key_watcher
 from src.internals.database.database import get_raw_conn
@@ -30,8 +29,6 @@ logging.basicConfig(filename='kemono_importer.log', level=logging.DEBUG)
 logging.getLogger('requests').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 
-multiprocessing_logging.install_mp_handler()
-
 database.init()
 redis.init()
 
@@ -42,7 +39,7 @@ if uwsgi.worker_id() == 0:
         backend.apply_migrations(backend.to_apply(migrations))
     index_artists()
     with app.app_context():
-        FlaskProcess(target=key_watcher.watch).start()
+        FlaskThread(target=key_watcher.watch).start()
 
 @app.teardown_appcontext
 def close(e):
