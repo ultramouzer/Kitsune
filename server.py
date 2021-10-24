@@ -4,6 +4,7 @@ from yoyo import get_backend
 import logging
 import uwsgi
 import config
+import multiprocessing_logging
 
 from configs.derived_vars import is_development
 from src.endpoints.api import api
@@ -28,6 +29,8 @@ if is_development:
 logging.basicConfig(filename='kemono_importer.log', level=logging.DEBUG)
 logging.getLogger('requests').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
+
+multiprocessing_logging.install_mp_handler()
 
 database.init()
 redis.init()
