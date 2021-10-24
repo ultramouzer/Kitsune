@@ -17,12 +17,4 @@ COPY . /app
 
 ENV LANG=C.UTF-8
 
-CMD uwsgi --http-socket=0.0.0.0:80 \
-    --manage-script-name \
-    --mount /=server:app \
-    --processes %k \
-    --threads 1 \
-    --master \
-    --listen 40000 \
-    --enable-threads \
-    --req-logger "file:/tmp/logs/uwsgi.log"
+CMD uwsgi --ini ./uwsgi.ini
