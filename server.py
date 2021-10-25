@@ -19,8 +19,8 @@ from src.internals.database.database import get_raw_conn
 app = Flask(__name__)
 
 app.register_blueprint(api)
-app.register_blueprint(icons)
-app.register_blueprint(banners)
+# app.register_blueprint(icons)
+# app.register_blueprint(banners)
 if is_development:
     from development import development
     app.register_blueprint(development)
