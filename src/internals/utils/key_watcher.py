@@ -19,7 +19,7 @@ from src.importers import fantia
 # a function that first runs existing import requests in a staggered manner (they may be incomplete as importers should delete their keys when they are done) then watches redis for new keys and handles queueing
 # needs to be run in a thread itself
 # remember to clear logs after successful import
-def watch(queue_limit=50):
+def watch(queue_limit=1000):
     archiver_id = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(16))
 
     redis = get_redis()
