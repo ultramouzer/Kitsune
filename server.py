@@ -38,8 +38,9 @@ if uwsgi.worker_id() == 0:
     with backend.lock():
         backend.apply_migrations(backend.to_apply(migrations))
     index_artists()
-    with app.app_context():
-        FlaskThread(target=key_watcher.watch).start()
+    if (config.pubsub):
+        with app.app_context():
+            FlaskThread(target=key_watcher.watch).start()
 
 @app.teardown_appcontext
 def close(e):
