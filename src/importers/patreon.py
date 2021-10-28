@@ -21,7 +21,7 @@ from gallery_dl import text
 from flask import current_app
 
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
-from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, dm_exists, delete_comment_cache_keys, delete_dm_cache_keys
+from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, dm_exists, delete_comment_cache_keys, delete_dm_cache_keys, get_all_artist_post_ids, get_all_artist_flagged_post_ids
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists
 from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..internals.cache.redis import delete_keys
@@ -545,7 +545,7 @@ def import_channel(auth_token, url, import_id, current_user, contributor_id, tim
 
             columns = post_model.keys()
             data = ['%s'] * len(post_model.values())
-            query = "INSERT INTO unapproved_dms ({fields}) VALUES ({values})".format(
+            query = "INSERT INTO unapproved_dms ({fields}) VALUES ({values}) ON CONFLICT DO NOTHING".format(
                 fields = ','.join(columns),
                 values = ','.join(data)
             )
@@ -625,7 +625,7 @@ def import_comment(comment, user_id, import_id):
 
     columns = post_model.keys()
     data = ['%s'] * len(post_model.values())
-    query = "INSERT INTO comments ({fields}) VALUES ({values})".format(
+    query = "INSERT INTO comments ({fields}) VALUES ({values}) ON CONFLICT DO NOTHING".format(
         fields = ','.join(columns),
         values = ','.join(data)
     )
@@ -698,7 +698,8 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
         except:
             log(import_id, f"An error occured while saving your key for auto-import.", 'exception')
     
-    user_id = None
+    post_ids_of_users = {}
+    flagged_post_ids_of_users = {}
     while True:
         for post in scraper_data['data']:
             try:
@@ -715,10 +716,14 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
 
                 import_comments(comments_url.format(post_id), key, post_id, user_id, import_id)
 
-                if post_exists('patreon', user_id, post_id) and not post_flagged('patreon', user_id, post_id):
+                # existence checking
+                if not post_ids_of_users.get(user_id):
+                    post_ids_of_users[user_id] = get_all_artist_post_ids('patreon', user_id)
+                if not flagged_post_ids_of_users.get(user_id):
+                    flagged_post_ids_of_users[user_id] = get_all_artist_flagged_post_ids('patreon', user_id)
+                if len(filter(post_ids_of_users[user_id], lambda post: post['id'] == post_id)) > 0 and len(filter(flagged_post_ids_of_users[user_id], lambda flag: flag['id'] == post_id)) == 0:
                     log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
                     continue
-
                 log(import_id, f"Starting import: {post_id} from user {user_id}")
 
                 post_model = {

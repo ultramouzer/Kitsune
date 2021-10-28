@@ -15,7 +15,7 @@ import dateparser
 from flask import current_app
 
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
-from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys
+from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, get_all_artist_post_ids, get_all_artist_flagged_post_ids
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, restore_from_backup, delete_backup
 from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..internals.utils.download import download_file, DownloaderException
@@ -61,6 +61,8 @@ def import_posts(import_id, key, contributor_id, allowed_to_auto_import, key_id)
         return #break early as there's nothing anyway
     
     first_run = True
+    post_ids_of_users = {}
+    flagged_post_ids_of_users = {}
     while True:
         soup = BeautifulSoup(scraper_data, 'html.parser')
         posts = soup.find_all("div", {"class": "post"})
@@ -89,8 +91,13 @@ def import_posts(import_id, key, contributor_id, allowed_to_auto_import, key_id)
                     log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
                     continue
 
-                if post_exists('subscribestar', user_id, str(post_id)) and not post_flagged('subscribestar', user_id, str(post_id)):
-                    log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
+                # existence checking
+                if not post_ids_of_users.get(user_id):
+                    post_ids_of_users[user_id] = get_all_artist_post_ids('subscribestar', user_id)
+                if not flagged_post_ids_of_users.get(user_id):
+                    flagged_post_ids_of_users[user_id] = get_all_artist_flagged_post_ids('subscribestar', user_id)
+                if len(filter(post_ids_of_users[user_id], lambda post: post['id'] == post_id)) > 0 and len(filter(flagged_post_ids_of_users[user_id], lambda flag: flag['id'] == post_id)) == 0:
+                    log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
                     continue
 
                 log(import_id, f"Starting import: {post_id}")

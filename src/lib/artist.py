@@ -33,6 +33,24 @@ def delete_artist_cache_keys(service, artist_id):
     delete_keys(keys)
     delete_keys_pattern(wildcard_keys)
 
+def get_all_artist_post_ids(service, artist_id):
+    conn = get_raw_conn()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM posts WHERE \"user\" = %s AND service = %s", (artist_id, service,))
+    existing_posts = cursor.fetchall()
+    cursor.close()
+    return_conn(conn)
+    return existing_posts
+
+def get_all_artist_flagged_post_ids(service, artist_id):
+    conn = get_raw_conn()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id FROM booru_flags WHERE service = %s AND "user" = %s', (service, artist_id))
+    existing_flags = cursor.fetchall()
+    cursor.close()
+    return_conn(conn)
+    return existing_flags
+
 def delete_all_artist_keys():
     keys = [
         'non_discord_artist_keys',
