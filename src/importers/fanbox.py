@@ -125,164 +125,177 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
     
     user_id = None
     if scraper_data.get('body'):
-        for post in scraper_data['body']['items']:
-            user_id = post['user']['userId']
-            post_id = post['id']
+        while True:
+            for post in scraper_data['body']['items']:
+                user_id = post['user']['userId']
+                post_id = post['id']
 
-            parsed_post = FanboxPost(post_id, None, post)
-            if parsed_post.is_restricted:
-                log(import_id, f'Skipping post {post_id} from user {user_id} because post is from higher subscription tier')
-                continue
-            try:
-                if is_artist_dnp('fanbox', user_id):
-                    log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
+                parsed_post = FanboxPost(post_id, None, post)
+                if parsed_post.is_restricted:
+                    log(import_id, f'Skipping post {post_id} from user {user_id} because post is from higher subscription tier')
                     continue
-
-                import_comments(key, post_id, user_id, import_id)
-
-                if post_exists('fanbox', user_id, post_id) and not post_flagged('fanbox', user_id, post_id):
-                    log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
-                    continue
-
-                log(import_id, f"Starting import: {post_id} from user {user_id}")
-
-                post_model = {
-                    'id': post_id,
-                    '"user"': user_id,
-                    'service': 'fanbox',
-                    'title': post['title'],
-                    'content': parsed_post.body_text,
-                    'embed': {},
-                    'shared_file': False,
-                    'added': datetime.datetime.now(),
-                    'published': post['publishedDatetime'],
-                    'edited': post['updatedDatetime'],
-                    'file': {},
-                    'attachments': []
-                }
-
-                for i in range(len(parsed_post.embeddedFiles)):
-                    if type(parsed_post.embeddedFiles[i]) is dict:
-                        if parsed_post.embeddedFiles[i]['serviceProvider'] == 'twitter':
-                            post_model['content'] += f"""
-                                <a href="https://twitter.com/_/status/{parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
-                                    <div class="embed-view">
-                                      <h3 class="subtitle">(Twitter)</h3>
-                                    </div>
-                                </a>
-                                <br>
-                            """
-                        elif parsed_post.embeddedFiles[i]['serviceProvider'] == 'youtube': 
-                            post_model['content'] += f"""
-                                <a href="https://www.youtube.com/watch?v={parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
-                                    <div class="embed-view">
-                                      <h3 class="subtitle">(YouTube)</h3>
-                                    </div>
-                                </a>
-                                <br>
-                            """
-                        elif parsed_post.embeddedFiles[i]['serviceProvider'] == 'fanbox': 
-                            post_model['content'] += f"""
-                                <a href="https://www.pixiv.net/fanbox/{parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
-                                    <div class="embed-view">
-                                      <h3 class="subtitle">(Fanbox)</h3>
-                                    </div>
-                                </a>
-                                <br>
-                            """
-                        elif parsed_post.embeddedFiles[i]['serviceProvider'] == 'vimeo': 
-                            post_model['content'] += f"""
-                                <a href="https://vimeo.com/{parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
-                                    <div class="embed-view">
-                                      <h3 class="subtitle">(Vimeo)</h3>
-                                    </div>
-                                </a>
-                                <br>
-                            """
-                        elif parsed_post.embeddedFiles[i]['serviceProvider'] == 'google_forms': 
-                            post_model['content'] += f"""
-                                <a href="https://docs.google.com/forms/d/e/{parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
-                                    <div class="embed-view">
-                                      <h3 class="subtitle">(Google Forms)</h3>
-                                    </div>
-                                </a>
-                                <br>
-                            """
-                        elif parsed_post.embeddedFiles[i]['serviceProvider'] == 'soundcloud': 
-                            post_model['content'] += f"""
-                                <a href="https://soundcloud.com/{parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
-                                    <div class="embed-view">
-                                      <h3 class="subtitle">(Soundcloud)</h3>
-                                    </div>
-                                </a>
-                                <br>
-                            """
-                    elif type(parsed_post.embeddedFiles[i]) is str:
-                        if i == 0:
-                            reported_filename, hash_filename, _ = download_file(
-                                parsed_post.embeddedFiles[i],
-                                'fanbox',
-                                user_id,
-                                post_id,
-                                cookies={ 'FANBOXSESSID': key },
-                                headers={ 'origin': 'https://fanbox.cc' }
-                            )
-                            post_model['file']['name'] = reported_filename
-                            post_model['file']['path'] = hash_filename
-                        else:
-                            reported_filename, hash_filename, _ = download_file(
-                                parsed_post.embeddedFiles[i],
-                                'fanbox',
-                                user_id,
-                                post_id,
-                                cookies={ 'FANBOXSESSID': key },
-                                headers={ 'origin': 'https://fanbox.cc' }
-                            )
-                            post_model['attachments'].append({
-                                'name': reported_filename,
-                                'path': hash_filename
-                            })
-
-                post_model['embed'] = json.dumps(post_model['embed'])
-                post_model['file'] = json.dumps(post_model['file'])
-                for i in range(len(post_model['attachments'])):
-                    post_model['attachments'][i] = json.dumps(post_model['attachments'][i])
-
-                columns = post_model.keys()
-                data = ['%s'] * len(post_model.values())
-                data[-1] = '%s::jsonb[]' # attachments
-                query = "INSERT INTO posts ({fields}) VALUES ({values}) ON CONFLICT (id, service) DO UPDATE SET {updates}".format(
-                    fields = ','.join(columns),
-                    values = ','.join(data),
-                    updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
-                )
-                conn = get_raw_conn()
                 try:
-                    cursor = conn.cursor()
-                    cursor.execute(query, list(post_model.values()))
-                    conn.commit()
-                finally:
-                    return_conn(conn)
+                    if is_artist_dnp('fanbox', user_id):
+                        log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
+                        continue
 
-                update_artist('fanbox', user_id)
-                delete_post_flags('fanbox', user_id, post_id)
+                    import_comments(key, post_id, user_id, import_id)
 
-                if (config.ban_url):
-                    requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
-                delete_artist_cache_keys('fanbox', user_id)
+                    if post_exists('fanbox', user_id, post_id) and not post_flagged('fanbox', user_id, post_id):
+                        log(import_id, f'Skipping post {post_id} from user {user_id} because already exists')
+                        continue
 
-                log(import_id, f'Finished importing {post_id} for user {user_id}', to_client = False)
-            except Exception as e:
-                log(import_id, f'Error importing post {post_id} from user {user_id}', 'exception')
-                continue
-        
-        next_url = scraper_data['body'].get('nextUrl')
-        if next_url:
-            log(import_id, f'Finished processing page ({url}). Processing {next_url}')
-            import_posts(import_id, key, url = next_url)
-        else:
-            log(import_id, f'Finished scanning for posts')
-            delete_keys([f'imports:{import_id}'])
-            index_artists()
+                    log(import_id, f"Starting import: {post_id} from user {user_id}")
+
+                    post_model = {
+                        'id': post_id,
+                        '"user"': user_id,
+                        'service': 'fanbox',
+                        'title': post['title'],
+                        'content': parsed_post.body_text,
+                        'embed': {},
+                        'shared_file': False,
+                        'added': datetime.datetime.now(),
+                        'published': post['publishedDatetime'],
+                        'edited': post['updatedDatetime'],
+                        'file': {},
+                        'attachments': []
+                    }
+
+                    for i in range(len(parsed_post.embeddedFiles)):
+                        if type(parsed_post.embeddedFiles[i]) is dict:
+                            if parsed_post.embeddedFiles[i]['serviceProvider'] == 'twitter':
+                                post_model['content'] += f"""
+                                    <a href="https://twitter.com/_/status/{parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
+                                        <div class="embed-view">
+                                          <h3 class="subtitle">(Twitter)</h3>
+                                        </div>
+                                    </a>
+                                    <br>
+                                """
+                            elif parsed_post.embeddedFiles[i]['serviceProvider'] == 'youtube': 
+                                post_model['content'] += f"""
+                                    <a href="https://www.youtube.com/watch?v={parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
+                                        <div class="embed-view">
+                                          <h3 class="subtitle">(YouTube)</h3>
+                                        </div>
+                                    </a>
+                                    <br>
+                                """
+                            elif parsed_post.embeddedFiles[i]['serviceProvider'] == 'fanbox': 
+                                post_model['content'] += f"""
+                                    <a href="https://www.pixiv.net/fanbox/{parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
+                                        <div class="embed-view">
+                                          <h3 class="subtitle">(Fanbox)</h3>
+                                        </div>
+                                    </a>
+                                    <br>
+                                """
+                            elif parsed_post.embeddedFiles[i]['serviceProvider'] == 'vimeo': 
+                                post_model['content'] += f"""
+                                    <a href="https://vimeo.com/{parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
+                                        <div class="embed-view">
+                                          <h3 class="subtitle">(Vimeo)</h3>
+                                        </div>
+                                    </a>
+                                    <br>
+                                """
+                            elif parsed_post.embeddedFiles[i]['serviceProvider'] == 'google_forms': 
+                                post_model['content'] += f"""
+                                    <a href="https://docs.google.com/forms/d/e/{parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
+                                        <div class="embed-view">
+                                          <h3 class="subtitle">(Google Forms)</h3>
+                                        </div>
+                                    </a>
+                                    <br>
+                                """
+                            elif parsed_post.embeddedFiles[i]['serviceProvider'] == 'soundcloud': 
+                                post_model['content'] += f"""
+                                    <a href="https://soundcloud.com/{parsed_post.embeddedFiles[i]['contentId']}" target="_blank">
+                                        <div class="embed-view">
+                                          <h3 class="subtitle">(Soundcloud)</h3>
+                                        </div>
+                                    </a>
+                                    <br>
+                                """
+                        elif type(parsed_post.embeddedFiles[i]) is str:
+                            if i == 0:
+                                reported_filename, hash_filename, _ = download_file(
+                                    parsed_post.embeddedFiles[i],
+                                    'fanbox',
+                                    user_id,
+                                    post_id,
+                                    cookies={ 'FANBOXSESSID': key },
+                                    headers={ 'origin': 'https://fanbox.cc' }
+                                )
+                                post_model['file']['name'] = reported_filename
+                                post_model['file']['path'] = hash_filename
+                            else:
+                                reported_filename, hash_filename, _ = download_file(
+                                    parsed_post.embeddedFiles[i],
+                                    'fanbox',
+                                    user_id,
+                                    post_id,
+                                    cookies={ 'FANBOXSESSID': key },
+                                    headers={ 'origin': 'https://fanbox.cc' }
+                                )
+                                post_model['attachments'].append({
+                                    'name': reported_filename,
+                                    'path': hash_filename
+                                })
+
+                    post_model['embed'] = json.dumps(post_model['embed'])
+                    post_model['file'] = json.dumps(post_model['file'])
+                    for i in range(len(post_model['attachments'])):
+                        post_model['attachments'][i] = json.dumps(post_model['attachments'][i])
+
+                    columns = post_model.keys()
+                    data = ['%s'] * len(post_model.values())
+                    data[-1] = '%s::jsonb[]' # attachments
+                    query = "INSERT INTO posts ({fields}) VALUES ({values}) ON CONFLICT (id, service) DO UPDATE SET {updates}".format(
+                        fields = ','.join(columns),
+                        values = ','.join(data),
+                        updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
+                    )
+                    conn = get_raw_conn()
+                    try:
+                        cursor = conn.cursor()
+                        cursor.execute(query, list(post_model.values()))
+                        conn.commit()
+                    finally:
+                        return_conn(conn)
+
+                    update_artist('fanbox', user_id)
+                    delete_post_flags('fanbox', user_id, post_id)
+
+                    if (config.ban_url):
+                        requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
+                    delete_artist_cache_keys('fanbox', user_id)
+
+                    log(import_id, f'Finished importing {post_id} for user {user_id}', to_client = False)
+                except Exception as e:
+                    log(import_id, f'Error importing post {post_id} from user {user_id}', 'exception')
+                    continue
+                
+            next_url = scraper_data['body'].get('nextUrl')
+            if next_url:
+                try:
+                    scraper = create_scrapper_session(useCloudscraper=False).get(
+                        next_url,
+                        cookies={ 'FANBOXSESSID': key },
+                        headers={ 'origin': 'https://fanbox.cc' },
+                        proxies=get_proxy()
+                    )
+                    scraper_data = scraper.json()
+                    scraper.raise_for_status()
+                except requests.HTTPError as e:
+                    log(import_id, f'HTTP error when contacting Fanbox API ({url}). Stopping import.', 'exception')
+                    return
+            else:
+                log(import_id, f'Finished scanning for posts')
+                delete_keys([f'imports:{import_id}'])
+                index_artists()
+                return
     else:
         log(import_id, f'No posts detected.')
+        delete_keys([f'imports:{import_id}'])
