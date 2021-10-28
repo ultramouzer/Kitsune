@@ -308,4 +308,3 @@ def import_posts(import_id, key, contributor_id, allowed_to_auto_import, key_id)
 
     log(import_id, f"Finished scanning for posts.")
     delete_keys([f'imports:{import_id}'])
-    index_artists()

@@ -222,5 +222,4 @@ def import_posts(import_id, key, contributor_id, allowed_to_auto_import, key_id)
                 
         else: #We got all the posts, exit
             log(import_id, f"Finished scanning for posts.")
-            index_artists()
             return

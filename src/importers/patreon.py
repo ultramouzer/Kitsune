@@ -864,7 +864,6 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
                 return
         else:
             log(import_id, f"Finished scanning for posts.")
-            index_artists()
 
 def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id, allowed_to_auto_import, key_id):
     if (allowed_to_scrape_dms):
@@ -878,7 +877,6 @@ def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id, allowed_
             import_campaign_page(posts_url + str(campaign_id), key, import_id, contributor_id = contributor_id, allowed_to_auto_import = allowed_to_auto_import, key_id = key_id)
         log(import_id, f"Finished scanning for posts.")
         delete_keys([f'imports:{import_id}'])
-        index_artists()
     else:
         delete_keys([f'imports:{import_id}'])
         log(import_id, f"No active subscriptions or invalid key. No posts will be imported.", to_client = True)

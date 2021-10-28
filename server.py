@@ -13,7 +13,7 @@ from src.internals.database import database
 from src.internals.cache import redis
 from src.internals.utils.flask_thread import FlaskThread
 from src.lib.artist import index_artists
-from src.internals.utils import key_watcher
+from src.internals.utils import key_watcher, indexer
 from src.internals.database.database import get_raw_conn
 
 app = Flask(__name__)
@@ -37,7 +37,8 @@ if uwsgi.worker_id() == 0:
     migrations = read_migrations('./migrations')
     with backend.lock():
         backend.apply_migrations(backend.to_apply(migrations))
-    index_artists()
+    with app.app_context():
+        FlaskThread(target=indexer.run).start()
     if (config.pubsub):
         with app.app_context():
             FlaskThread(target=key_watcher.watch).start()
