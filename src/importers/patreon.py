@@ -721,7 +721,7 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
                     post_ids_of_users[user_id] = get_all_artist_post_ids('patreon', user_id)
                 if not flagged_post_ids_of_users.get(user_id):
                     flagged_post_ids_of_users[user_id] = get_all_artist_flagged_post_ids('patreon', user_id)
-                if len(filter(post_ids_of_users[user_id], lambda post: post['id'] == post_id)) > 0 and len(filter(flagged_post_ids_of_users[user_id], lambda flag: flag['id'] == post_id)) == 0:
+                if len(list(filter(lambda post: post['id'] == post_id, post_ids_of_users[user_id]))) > 0 and len(list(filter(lambda flag: flag['id'] == post_id, flagged_post_ids_of_users[user_id]))) == 0:
                     log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
                     continue
                 log(import_id, f"Starting import: {post_id} from user {user_id}")
