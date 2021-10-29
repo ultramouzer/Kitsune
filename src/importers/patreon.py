@@ -864,6 +864,7 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
                 return
         else:
             log(import_id, f"Finished scanning for posts.")
+            return
 
 def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id, allowed_to_auto_import, key_id):
     if (allowed_to_scrape_dms):
