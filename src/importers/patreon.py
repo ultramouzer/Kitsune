@@ -21,7 +21,7 @@ from gallery_dl import text
 from flask import current_app
 
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
-from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, dm_exists, delete_comment_cache_keys, delete_dm_cache_keys, get_all_artist_post_ids, get_all_artist_flagged_post_ids
+from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, dm_exists, delete_comment_cache_keys, delete_dm_cache_keys, get_all_artist_post_ids, get_all_artist_flagged_post_ids, get_all_dnp
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists
 from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..internals.cache.redis import delete_keys
@@ -698,6 +698,7 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
         except:
             log(import_id, f"An error occured while saving your key for auto-import.", 'exception')
     
+    dnp = get_all_dnp()
     post_ids_of_users = {}
     flagged_post_ids_of_users = {}
     while True:
@@ -706,7 +707,7 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
                 user_id = post['relationships']['user']['data']['id']
                 post_id = post['id']
 
-                if is_artist_dnp('patreon', user_id):
+                if len(list(filter(lambda artist: artist['id'] == user_id and artist['service'] == 'patreon', dnp))) > 0:
                     log(import_id, f"Skipping user {user_id} because they are in do not post list", to_client = True)
                     return
 

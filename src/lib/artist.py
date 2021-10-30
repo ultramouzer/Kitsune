@@ -33,6 +33,15 @@ def delete_artist_cache_keys(service, artist_id):
     delete_keys(keys)
     delete_keys_pattern(wildcard_keys)
 
+def get_all_dnp():
+    conn = get_raw_conn()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM dnp")
+    results = cursor.fetchall()
+    cursor.close()
+    return_conn(conn)
+    return results
+
 def get_all_artist_post_ids(service, artist_id):
     conn = get_raw_conn()
     cursor = conn.cursor()

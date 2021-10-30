@@ -14,7 +14,7 @@ from bs4 import BeautifulSoup
 from flask import current_app
 
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
-from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, get_all_artist_post_ids, get_all_artist_flagged_post_ids
+from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, get_all_artist_post_ids, get_all_artist_flagged_post_ids, get_all_dnp
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup
 from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..internals.cache.redis import delete_keys
@@ -59,6 +59,7 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
     #     parsed_user_info_list = json.loads(user_info_list) # (username, display name, ID), username can be null
     #     users[parsed_user_info_list[1]] = parsed_user_info_list[2]
 
+    dnp = get_all_dnp()
     post_ids_of_users = {}
     flagged_post_ids_of_users = {}
     for product in library_data['results']:
@@ -92,7 +93,7 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
             scraper_soup = BeautifulSoup(scraper_data, 'html.parser')
             post_id = scraper_soup.select_one('[id=download-landing-page]')['data-permalink']
 
-            if is_artist_dnp('gumroad', user_id):
+            if len(list(filter(lambda artist: artist['id'] == user_id and artist['service'] == 'gumroad', dnp))) > 0:
                 log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
                 continue
 

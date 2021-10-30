@@ -15,7 +15,7 @@ from PixivUtil2.PixivModelFanbox import FanboxArtist, FanboxPost
 
 from ..internals.cache.redis import delete_keys
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
-from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, delete_comment_cache_keys, get_all_artist_post_ids, get_all_artist_flagged_post_ids
+from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, delete_comment_cache_keys, get_all_artist_post_ids, get_all_artist_flagged_post_ids, get_all_dnp
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists
 from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..internals.utils.proxy import get_proxy
@@ -124,6 +124,7 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
             log(import_id, f"An error occured while saving your key for auto-import.", 'exception')
     
     user_id = None
+    dnp = get_all_dnp()
     post_ids_of_users = {}
     flagged_post_ids_of_users = {}
     if scraper_data.get('body'):
@@ -137,7 +138,7 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
                     log(import_id, f'Skipping post {post_id} from user {user_id} because post is from higher subscription tier')
                     continue
                 try:
-                    if is_artist_dnp('fanbox', user_id):
+                    if len(list(filter(lambda artist: artist['id'] == user_id and artist['service'] == 'fanbox', dnp))) > 0:
                         log(import_id, f"Skipping post {post_id} from user {user_id} is in do not post list")
                         continue
 

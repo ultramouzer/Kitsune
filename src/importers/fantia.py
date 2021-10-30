@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 from ..internals.cache.redis import delete_keys
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..internals.utils.logger import log
-from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, get_all_artist_post_ids, get_all_artist_flagged_post_ids
+from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, get_all_artist_post_ids, get_all_artist_flagged_post_ids, get_all_dnp
 from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup
 from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..internals.utils.download import download_file, DownloaderException
@@ -89,6 +89,7 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
     
     scraped_posts = BeautifulSoup(scraper_data, 'html.parser').select('div.post')
     user_id = None
+    dnp = get_all_dnp()
     post_ids_of_users = {}
     flagged_post_ids_of_users = {}
     while True:
@@ -97,7 +98,7 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
                 user_id = fanclub_id
                 post_id = post.select_one('a.link-block')['href'].lstrip('/posts/')
     
-                if is_artist_dnp('fantia', user_id):
+                if len(list(filter(lambda artist: artist['id'] == user_id and artist['service'] == 'fantia', dnp))) > 0:
                     log(import_id, f"Skipping user {user_id} because they are in do not post list", to_client = True)
                     return     
     
