@@ -13,6 +13,7 @@ from os.path import join, splitext
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from retry import retry
+from joblib import Parallel, delayed
 
 from websocket import create_connection
 from urllib.parse import urlparse
@@ -502,30 +503,30 @@ def import_channel(auth_token, url, import_id, current_user, contributor_id, tim
     except requests.HTTPError as e:
         log(import_id, f"Status code {e.response.status_code} when contacting DM message API.", 'exception')
         raise
-
-    for message in scraper_data['messages']:
+    
+    def process_message(message):
         # https://sendbird.com/docs/chat/v3/platform-api/guides/messages
         dm_id = str(message['message_id'])
         user_id = message['user']['user_id']
 
         if (message['is_removed']):
             log(import_id, f"Skipping message {dm_id} from user {user_id} because already exists", to_client = False)
-            continue
+            return
 
         log(import_id, f"Starting message import: {dm_id} from user {user_id}", to_client = False)
 
         if (message['type'] == 'MESG'):
             if dm_exists('patreon', user_id, dm_id, message['message']):
                 log(import_id, f"Skipping message {dm_id} from user {user_id} because already exists", to_client = False)
-                continue
+                return
             
             if user_id == current_user:
                 log(import_id, f"Skipping message {dm_id} from user {user_id} because it was made by the contributor", to_client = False)
-                continue
+                return
 
             if not message['message'].strip():
                 log(import_id, f"Skipping message {dm_id} from user {user_id} because it is empty", to_client = False)
-                continue
+                return
 
             post_model = {
                 'import_id': import_id,
@@ -562,7 +563,9 @@ def import_channel(auth_token, url, import_id, current_user, contributor_id, tim
             delete_dm_cache_keys(post_model['service'], user_id)
         elif (message['type'] == 'FILE'):
             log(import_id, f'Skipping message {dm_id} because file DMs are unsupported', to_client=True)
-            continue
+            return
+    
+    Parallel(n_jobs=-1)(delayed(process_message)(message) for message in scraper_data['messages'])
     
     if (scraper_data['messages']):
         import_channel(auth_token, url, import_id, current_user, contributor_id, timestamp = scraper_data['messages'][0]['created_at'])
@@ -578,13 +581,15 @@ def import_channels(auth_token, current_user, campaigns, import_id, contributor_
     except requests.HTTPError as e:
         log(import_id, f"Status code {e.response.status_code} when contacting DM channel list API.", 'exception')
         return
-    
-    for channel in scraper_data['channels']:
+
+    def process_channel(channel):
         try:
             import_channel(auth_token, channel['channel']['channel_url'], import_id, current_user, contributor_id)
         except Exception as e:
             log(import_id, f"Error while importing DM channel {channel['channel']['channel_url']}", 'exception', True)
-            continue
+            return
+    
+    Parallel(n_jobs=-1)(delayed(process_channel)(channel) for channel in scraper_data['channels'])
 
     if (scraper_data['next']):
         import_channels(auth_token, current_user, campaigns, import_id, contributor_id, token = scraper_data['next'])
@@ -596,50 +601,6 @@ def import_dms(key, import_id, contributor_id):
     ws.close()
 
     import_channels(ws_data['key'], current_user_id, get_dm_campaigns(key, current_user_id, import_id), import_id, contributor_id)
-
-def import_comment(comment, user_id, import_id):
-    post_id = comment['relationships']['post']['data']['id']
-    commenter_id = comment['relationships']['commenter']['data']['id']
-    comment_id = comment['id']
-    
-    if comment_exists('patreon', commenter_id, comment_id):
-        log(import_id, f"Skipping comment {comment_id} from post {post_id} because already exists", to_client = False)
-        return
-
-    if (comment['attributes']['deleted_at']):
-        log(import_id, f"Skipping comment {comment_id} from post {post_id} because it is deleted", to_client = False)
-        return
-    
-    log(import_id, f"Starting comment import: {comment_id} from post {post_id}", to_client = False)
-
-    post_model = {
-        'id': comment_id,
-        'post_id': post_id,
-        'parent_id': comment['relationships']['parent']['data']['id'] if comment['relationships']['parent']['data'] else None,
-        'commenter': commenter_id,
-        'service': 'patreon',
-        'content': comment['attributes']['body'],
-        'added': datetime.datetime.now(),
-        'published': comment['attributes']['created'],
-    }
-
-    columns = post_model.keys()
-    data = ['%s'] * len(post_model.values())
-    query = "INSERT INTO comments ({fields}) VALUES ({values}) ON CONFLICT DO NOTHING".format(
-        fields = ','.join(columns),
-        values = ','.join(data)
-    )
-    conn = get_raw_conn()
-    try:
-        cursor = conn.cursor()
-        cursor.execute(query, list(post_model.values()))
-        conn.commit()
-    finally:
-        return_conn(conn)
-
-    if (config.ban_url):
-        requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + user_id + '/post/' + post_model['post_id'])
-    delete_comment_cache_keys(post_model['service'], user_id, post_model['post_id'])
 
 def import_comments(url, key, post_id, user_id, import_id):
     try:
@@ -653,13 +614,55 @@ def import_comments(url, key, post_id, user_id, import_id):
         log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
         return
     
-    for comment in scraper_data['data']:
-        comment_id = comment['id']
+    def process_comment(comment):
         try:
-            import_comment(comment, user_id, import_id)
+            post_id = comment['relationships']['post']['data']['id']
+            commenter_id = comment['relationships']['commenter']['data']['id']
+            comment_id = comment['id']
+            
+            if comment_exists('patreon', commenter_id, comment_id):
+                log(import_id, f"Skipping comment {comment_id} from post {post_id} because already exists", to_client = False)
+                return
+        
+            if (comment['attributes']['deleted_at']):
+                log(import_id, f"Skipping comment {comment_id} from post {post_id} because it is deleted", to_client = False)
+                return
+            
+            log(import_id, f"Starting comment import: {comment_id} from post {post_id}", to_client = False)
+        
+            post_model = {
+                'id': comment_id,
+                'post_id': post_id,
+                'parent_id': comment['relationships']['parent']['data']['id'] if comment['relationships']['parent']['data'] else None,
+                'commenter': commenter_id,
+                'service': 'patreon',
+                'content': comment['attributes']['body'],
+                'added': datetime.datetime.now(),
+                'published': comment['attributes']['created'],
+            }
+        
+            columns = post_model.keys()
+            data = ['%s'] * len(post_model.values())
+            query = "INSERT INTO comments ({fields}) VALUES ({values}) ON CONFLICT DO NOTHING".format(
+                fields = ','.join(columns),
+                values = ','.join(data)
+            )
+            conn = get_raw_conn()
+            try:
+                cursor = conn.cursor()
+                cursor.execute(query, list(post_model.values()))
+                conn.commit()
+            finally:
+                return_conn(conn)
+        
+            if (config.ban_url):
+                requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + user_id + '/post/' + post_model['post_id'])
+            delete_comment_cache_keys(post_model['service'], user_id, post_model['post_id'])
         except Exception as e:
-            log(import_id, f"Error while importing comment {comment_id} from post {post_id}", 'exception', True)
-            continue
+            log(import_id, f"Error while importing comment {comment['id']} from post {post_id}", 'exception', True)
+            return
+    
+    Parallel(n_jobs=-1)(delayed(process_comment)(comment) for comment in scraper_data['data'])
     
     if scraper_data.get('included'):
         for included in scraper_data['included']:
@@ -701,7 +704,7 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
     post_ids_of_users = {}
     flagged_post_ids_of_users = {}
     while True:
-        for post in scraper_data['data']:
+        def process_post(post):
             try:
                 user_id = post['relationships']['user']['data']['id']
                 post_id = post['id']
@@ -712,7 +715,7 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
 
                 if not post['attributes']['current_user_can_view']:
                     log(import_id, f'Skipping {post_id} from user {user_id} because this post is not available for current subscription tier', to_client = True)
-                    continue            
+                    return            
 
                 import_comments(comments_url.format(post_id), key, post_id, user_id, import_id)
 
@@ -723,7 +726,7 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
                     flagged_post_ids_of_users[user_id] = get_all_artist_flagged_post_ids('patreon', user_id)
                 if len(list(filter(lambda post: post['id'] == post_id, post_ids_of_users[user_id]))) > 0 and len(list(filter(lambda flag: flag['id'] == post_id, flagged_post_ids_of_users[user_id]))) == 0:
                     log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
-                    continue
+                    return
                 log(import_id, f"Starting import: {post_id} from user {user_id}")
 
                 post_model = {
@@ -851,7 +854,9 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
                 log(import_id, f"Finished importing {post_id} from user {user_id}", to_client=False)
             except Exception as e:
                 log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception', True)
-                continue
+                return
+
+        Parallel(n_jobs=-1)(delayed(process_post)(post) for post in scraper_data['data'])
             
         if 'links' in scraper_data and 'next' in scraper_data['links']:
             log(import_id, f'Finished processing page. Processing next page.')
