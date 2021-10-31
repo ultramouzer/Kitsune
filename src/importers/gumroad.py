@@ -12,6 +12,7 @@ from os.path import join
 from os import makedirs
 from bs4 import BeautifulSoup
 from flask import current_app
+from setproctitle import setthreadtitle
 
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, get_all_artist_post_ids, get_all_artist_flagged_post_ids, get_all_dnp
@@ -25,6 +26,7 @@ from ..internals.utils.utils import get_value
 from ..internals.utils.scrapper import create_scrapper_session
 
 def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import = None, key_id = None, offset = 1):
+    setthreadtitle(f'Kitsune Import|{import_id}')
     try:
         scraper = create_scrapper_session().get(
             "https://app.gumroad.com/library",

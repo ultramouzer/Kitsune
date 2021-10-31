@@ -15,12 +15,13 @@ from src.importers import subscribestar
 from src.importers import gumroad
 from src.importers import discord
 from src.importers import fantia
-
+from setproctitle import setthreadtitle
 # a function that first runs existing import requests in a staggered manner (they may be incomplete as importers should delete their keys when they are done) then watches redis for new keys and handles queueing
 # needs to be run in a thread itself
 # remember to clear logs after successful import
 def watch(queue_limit=2000):
     archiver_id = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(16))
+    setthreadtitle(f'Kitsune Key Watcher|{archiver_id}')
 
     redis = get_redis()
     threads_to_run = []

@@ -13,6 +13,7 @@ from os.path import join, splitext
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from retry import retry
+from setproctitle import setthreadtitle
 
 from websocket import create_connection
 from urllib.parse import urlparse
@@ -885,6 +886,7 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
             return
 
 def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id, allowed_to_auto_import, key_id):
+    setthreadtitle(f'Kitsune Import|{import_id}')
     if (allowed_to_scrape_dms):
         log(import_id, f"Importing DMs...", to_client = True)
         import_dms(key, import_id, contributor_id)

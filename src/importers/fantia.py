@@ -8,6 +8,7 @@ import datetime
 from urllib.parse import urljoin
 from os.path import join
 from bs4 import BeautifulSoup
+from setproctitle import setthreadtitle
 
 from ..internals.cache.redis import delete_keys
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
@@ -278,6 +279,7 @@ def get_paid_fanclubs(import_id, jar):
     return set(fanclub_link["href"].lstrip("/fanclubs/") for fanclub_link in soup.select("div.mb-5-children > div:nth-of-type(1) a[href^=\"/fanclubs\"]"))
 
 def import_posts(import_id, key, contributor_id, allowed_to_auto_import, key_id):
+    setthreadtitle(f'Kitsune Import|{import_id}')
     jar = requests.cookies.RequestsCookieJar()
     jar.set('_session_id', key)
     

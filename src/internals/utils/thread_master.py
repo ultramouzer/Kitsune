@@ -1,8 +1,10 @@
 from typing import List
 from threading import Thread
+from setproctitle import setthreadtitle
 # a function that starts other threads in a queue
 # needs to be run in a thread itself
 def run(threads: List[Thread], limit=10):
+    setthreadtitle('Kitsune Threadmaster')
     pos = 0
     threads_to_run = []
     while pos < len(threads):

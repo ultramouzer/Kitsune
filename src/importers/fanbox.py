@@ -8,6 +8,7 @@ import requests
 import datetime
 import config
 import json
+from setproctitle import setthreadtitle
 
 from flask import current_app
 
@@ -114,6 +115,7 @@ def import_comments(key, post_id, user_id, import_id, url = None):
                 return
 
 def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import = None, key_id = None, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
+    setthreadtitle(f'Kitsune Import|{import_id}')
     try:
         scraper = create_scrapper_session(useCloudscraper=False).get(
             url,
