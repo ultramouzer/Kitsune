@@ -30,11 +30,12 @@ def watch(queue_limit=2000):
                 threads_to_run.remove(thread)
         
         keys = redis.keys('imports:*')
+        running_imports = redis.keys(f"running_imports:{archiver_id}:*")
         for key in keys:
             key_data = redis.get(key)
             if key_data:
                 key_data = json.loads(key_data)
-                if redis.get(f"running_imports:{archiver_id}:{key_data['import_id']}"):
+                if f"running_imports:{archiver_id}:{key_data['import_id']}" in running_imports:
                     continue
                 
                 if len(threads_to_run) < queue_limit:
