@@ -38,6 +38,7 @@ def decrypt_key(key, cipher):
     except:
         return None
     return (key_to_decrypt)
+
 def decrypt_all_good_keys(privatekey, v1 = False):
     key_table = 'saved_session_keys' if v1 else 'saved_session_keys_with_hashes'
     key_der = b64decode(privatekey.strip())
