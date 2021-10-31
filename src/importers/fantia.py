@@ -259,6 +259,7 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
                 )
                 scraper_data = scraper.text
                 scraper.raise_for_status()
+                scraped_posts = BeautifulSoup(scraper_data, 'html.parser').select('div.post')
             except requests.HTTPError as exc:
                 log(import_id, f'Status code {exc.response.status_code} when contacting Fantia API.', 'exception')
                 return
