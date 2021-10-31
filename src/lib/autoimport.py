@@ -6,6 +6,7 @@ from ..internals.utils.logger import log
 from base64 import b64decode,b64encode
 import hashlib
 import config
+from joblib import Parallel, delayed
 
 def log_import_id(key_id, import_id):
     conn = get_raw_conn()
@@ -30,6 +31,13 @@ def kill_key(key_id):
     conn.commit()
     return_conn(conn)
 
+def decrypt_key(key, cipher):
+    key_to_decrypt = key
+    try:
+        key_to_decrypt['decrypted_key'] = cipher.decrypt(b64decode(key_to_decrypt['encrypted_key'])).decode('utf-8')
+    except:
+        return None
+    return (key_to_decrypt)
 def decrypt_all_good_keys(privatekey, v1 = False):
     key_table = 'saved_session_keys' if v1 else 'saved_session_keys_with_hashes'
     key_der = b64decode(privatekey.strip())
@@ -41,14 +49,10 @@ def decrypt_all_good_keys(privatekey, v1 = False):
     cursor.execute(f"SELECT * FROM {key_table} WHERE dead = FALSE")
     encrypted_keys = cursor.fetchall()
     decrypted_keys = []
-    for key in encrypted_keys:
-        key_to_decrypt = key
-        try:
-            key_to_decrypt['decrypted_key'] = cipher.decrypt(b64decode(key_to_decrypt['encrypted_key'])).decode('utf-8')
-        except:
-            continue
-        decrypted_keys.append(key_to_decrypt)
-
+    decrypting = Parallel(n_jobs=-1)(delayed(decrypt_key)(key, cipher) for key in encrypted_keys)
+    for key in decrypting:
+        if key:
+            decrypted_keys.append(key)
     return decrypted_keys
 
 def encrypt_and_save_session_for_auto_import(service, key, contributor_id = None, discord_channel_ids = None):
