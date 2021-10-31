@@ -28,10 +28,6 @@ def import_comment(comment, user_id, post_id, import_id):
     commenter_id = comment['user']['userId']
     comment_id = comment['id']
     
-    if comment_exists('fanbox', commenter_id, comment_id):
-        log(import_id, f"Skipping comment {comment_id} from post {post_id} because already exists", to_client = False)
-        return
-    
     log(import_id, f"Starting comment import: {comment_id} from post {post_id}", to_client = False)
 
     post_model = {

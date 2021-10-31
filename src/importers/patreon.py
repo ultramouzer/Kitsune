@@ -602,10 +602,6 @@ def import_comment(comment, user_id, import_id):
     commenter_id = comment['relationships']['commenter']['data']['id']
     comment_id = comment['id']
     
-    if comment_exists('patreon', commenter_id, comment_id):
-        log(import_id, f"Skipping comment {comment_id} from post {post_id} because already exists", to_client = False)
-        return
-
     if (comment['attributes']['deleted_at']):
         log(import_id, f"Skipping comment {comment_id} from post {post_id} because it is deleted", to_client = False)
         return
