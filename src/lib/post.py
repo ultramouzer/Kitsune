@@ -30,6 +30,15 @@ def post_exists(service, artist_id, post_id):
     return_conn(conn)
     return len(existing_posts) > 0
 
+def get_comments_for_posts(service, post_id):
+    conn = get_raw_conn()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM comments WHERE post_id = %s AND service = %s", (service, post_id))
+    existing_posts = cursor.fetchall()
+    cursor.close()
+    return_conn(conn)
+    return existing_posts
+
 def comment_exists(service, commenter_id, comment_id):
     conn = get_raw_conn()
     cursor = conn.cursor()

@@ -22,7 +22,7 @@ from flask import current_app
 
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, dm_exists, delete_comment_cache_keys, delete_dm_cache_keys, get_all_artist_post_ids, get_all_artist_flagged_post_ids, get_all_dnp
-from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists
+from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists, get_comments_for_posts
 from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..internals.cache.redis import delete_keys
 from ..internals.utils.download import download_file, DownloaderException
@@ -653,27 +653,48 @@ def import_comments(url, key, post_id, user_id, import_id):
         log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
         return
     
-    for comment in scraper_data['data']:
-        comment_id = comment['id']
-        try:
-            import_comment(comment, user_id, import_id)
-        except Exception as e:
-            log(import_id, f"Error while importing comment {comment_id} from post {post_id}", 'exception', True)
-            continue
-    
-    if scraper_data.get('included'):
-        for included in scraper_data['included']:
-            if (included['type'] == 'comment'):
-                comment_id = comment['id']
-                try:
-                    import_comment(included, user_id, import_id)
-                except Exception as e:
-                    log(import_id, f"Error while importing comment {comment_id} from post {post_id}", 'exception', True)
+    all_comments = get_comments_for_posts('patreon', post_id)
+    while True:
+        for comment in scraper_data['data']:
+            comment_id = comment['id']
+            commenter_id = comment['relationships']['commenter']['data']['id']
+            try:
+                if len(list(filter(lambda comment: comment['id'] == post_id and comment['commenter'] == commenter_id, all_comments))) > 0:
+                    log(import_id, f"Skipping comment {comment_id} from post {post_id} because already exists", to_client = False)
                     continue
+                import_comment(comment, user_id, import_id)
+            except Exception as e:
+                log(import_id, f"Error while importing comment {comment_id} from post {post_id}", 'exception', True)
+                continue
     
-    if 'links' in scraper_data and 'next' in scraper_data['links']:
-        log(import_id, f"Processing next page of comments for post {post_id}", to_client = False)
-        import_comments(scraper_data['links']['next'], key, post_id, user_id, import_id)
+        if scraper_data.get('included'):
+            for included in scraper_data['included']:
+                if (included['type'] == 'comment'):
+                    comment_id = comment['id']
+                    commenter_id = comment['relationships']['commenter']['data']['id']
+                    try:
+                        if len(list(filter(lambda comment: comment['id'] == post_id and comment['commenter'] == commenter_id, all_comments))) > 0:
+                            log(import_id, f"Skipping comment {comment_id} from post {post_id} because already exists", to_client = False)
+                            continue
+                        import_comment(included, user_id, import_id)
+                    except Exception as e:
+                        log(import_id, f"Error while importing comment {comment_id} from post {post_id}", 'exception', True)
+                        continue
+        
+        if 'links' in scraper_data and 'next' in scraper_data['links']:
+            log(import_id, f"Processing next page of comments for post {post_id}", to_client = False)
+            try:
+                scraper = create_scrapper_session().get(scraper_data['links']['next'], cookies = { 'session_id': key }, proxies=get_proxy())
+                scraper_data = scraper.json()
+                scraper.raise_for_status()
+            except requests.HTTPError as e:
+                log(import_id, f"Status code {e.response.status_code} when contacting Patreon API.", 'exception')
+                return
+            except Exception:
+                log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
+                return
+        else:
+            return
 
 def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_auto_import = None, key_id = None): 
     try:
