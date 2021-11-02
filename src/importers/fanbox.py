@@ -44,7 +44,7 @@ def import_comment(comment, user_id, post_id, import_id):
 
     columns = post_model.keys()
     data = ['%s'] * len(post_model.values())
-    query = "INSERT INTO comments ({fields}) VALUES ({values})".format(
+    query = "INSERT INTO comments ({fields}) VALUES ({values}) ON CONFLICT DO NOTHING".format(
         fields = ','.join(columns),
         values = ','.join(data)
     )
