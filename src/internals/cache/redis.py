@@ -25,15 +25,8 @@ def delete_keys(keys):
 def delete_keys_pattern(patterns):
     redis = get_redis()
     for pattern in patterns:
-        keys = redis.keys(pattern)
-        if (len(keys)):
-            redis.delete(*keys)
-
-# def delete_keys(pattern):
-#     redis = get_redis()
-#     keys = redis.keys(pattern)
-#     if (len(keys)):
-#         redis.delete(*keys)
+        for key in redis.scan_iter(match=pattern):
+            redis.delete(key)
 
 def serialize_dict(data):
     to_serialize = {
