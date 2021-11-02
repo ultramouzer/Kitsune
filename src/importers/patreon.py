@@ -23,7 +23,7 @@ from flask import current_app
 
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
 from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, dm_exists, delete_comment_cache_keys, delete_dm_cache_keys, get_all_artist_post_ids, get_all_artist_flagged_post_ids, get_all_dnp
-from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists, get_comments_for_posts
+from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists, get_comments_for_posts, get_comment_ids_for_user
 from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
 from ..internals.cache.redis import delete_keys
 from ..internals.utils.download import download_file, DownloaderException
@@ -638,7 +638,7 @@ def import_comment(comment, user_id, import_id):
         requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + user_id + '/post/' + post_model['post_id'])
     delete_comment_cache_keys(post_model['service'], user_id, post_model['post_id'])
 
-def import_comments(url, key, post_id, user_id, import_id):
+def import_comments(url, key, post_id, user_id, import_id, existing_comment_ids):
     try:
         scraper = create_scrapper_session().get(url, cookies = { 'session_id': key }, proxies=get_proxy())
         scraper_data = scraper.json()
@@ -656,7 +656,7 @@ def import_comments(url, key, post_id, user_id, import_id):
             comment_id = comment['id']
             commenter_id = comment['relationships']['commenter']['data']['id']
             try:
-                if len(list(filter(lambda comment: comment['id'] == post_id and comment['commenter'] == commenter_id, all_comments))) > 0:
+                if len(list(filter(lambda comment: comment['id'] == comment_id, existing_comment_ids))) > 0:
                     log(import_id, f"Skipping comment {comment_id} from post {post_id} because already exists", to_client = False)
                     continue
                 import_comment(comment, user_id, import_id)
@@ -670,7 +670,7 @@ def import_comments(url, key, post_id, user_id, import_id):
                     comment_id = comment['id']
                     commenter_id = comment['relationships']['commenter']['data']['id']
                     try:
-                        if len(list(filter(lambda comment: comment['id'] == post_id and comment['commenter'] == commenter_id, all_comments))) > 0:
+                        if len(list(filter(lambda comment: comment['id'] == comment_id, existing_comment_ids))) > 0:
                             log(import_id, f"Skipping comment {comment_id} from post {post_id} because already exists", to_client = False)
                             continue
                         import_comment(included, user_id, import_id)
@@ -719,6 +719,7 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
     dnp = get_all_dnp()
     post_ids_of_users = {}
     flagged_post_ids_of_users = {}
+    comment_ids_of_users = {}
     while True:
         for post in scraper_data['data']:
             try:
@@ -733,7 +734,9 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
                     log(import_id, f'Skipping {post_id} from user {user_id} because this post is not available for current subscription tier', to_client = True)
                     continue            
 
-                import_comments(comments_url.format(post_id), key, post_id, user_id, import_id)
+                if not comment_ids_of_users.get(user_id):
+                    comment_ids_of_users[user_id] = get_comment_ids_for_user('patreon', user_id)
+                import_comments(comments_url.format(post_id), key, post_id, user_id, import_id, comment_ids_of_users[user_id])
 
                 # existence checking
                 if not post_ids_of_users.get(user_id):
