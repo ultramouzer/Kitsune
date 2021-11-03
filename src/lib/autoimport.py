@@ -33,17 +33,27 @@ def kill_key(key_id):
     conn.commit()
     return_conn(conn)
 
-def decrypt_key(key, rsa_cipher, aes_cipher):
+def decrypt_key(key, rsa_key):
     key_to_decrypt = key
-    try:
-        key_to_decrypt['decrypted_key'] = rsa_cipher.decrypt(b64decode(key_to_decrypt['encrypted_key'])).decode('utf-8')
-    except:
-        if aes_cipher:
-            try:
-                key_to_decrypt['decrypted_key'] = aes_cipher.decrypt(b64decode(key_to_decrypt['encrypted_key'])).decode('utf-8')
-            except:
-                return None
-        else:
+
+    key_der = b64decode(rsa_key.strip())
+    key_prv = RSA.importKey(key_der)
+    rsa_cipher = PKCS1_OAEP.new(key_prv)
+
+    if key_to_decrypt['encrypted_key'].startswith('#'): # rsa+aes
+        try:
+            cryptstuff = key_to_decrypt['encrypted_key'].split('#')[-1]
+            encrypted_aes_key, nonce, ct, tag = (b64decode(x) for x in b64decode(cryptstuff).decode('utf-8').split('|'))
+            
+            decrypted_aes_key = rsa_cipher.decrypt(encrypted_aes_key)
+            cipher = AES.new(decrypted_aes_key, AES.MODE_EAX, nonce)
+            key_to_decrypt['decrypted_key'] = cipher.decrypt_and_verify(ct, tag).decode('utf-8')
+        except:
+            return None
+    else: # rsa solo
+        try:
+            key_to_decrypt['decrypted_key'] = rsa_cipher.decrypt_and_verify(b64decode(key_to_decrypt['encrypted_key'])).decode('utf-8')
+        except:
             return None
     return (key_to_decrypt)
 
@@ -51,22 +61,13 @@ def decrypt_all_good_keys(privatekey, v1 = False):
     redis = get_redis()
 
     key_table = 'saved_session_keys' if v1 else 'saved_session_keys_with_hashes'
-    key_der = b64decode(privatekey.strip())
-    key_prv = RSA.importKey(key_der)
-    rsa_cipher = PKCS1_OAEP.new(key_prv)
-
-    aes_cipher = None
-    encrypted_aes_key = redis.get('autoimport-aeskey')
-    if encrypted_aes_key:
-        decrypted_aes_key = rsa_cipher.decrypt(b64decode(encrypted_aes_key))
-        aes_cipher = AES.new(decrypted_aes_key)
     
     conn = get_raw_conn()
     cursor = conn.cursor()
     cursor.execute(f"SELECT * FROM {key_table} WHERE dead = FALSE")
     encrypted_keys = cursor.fetchall()
     decrypted_keys = []
-    decrypting = Parallel(n_jobs=-1)(delayed(decrypt_key)(key, rsa_cipher, aes_cipher) for key in encrypted_keys)
+    decrypting = Parallel(n_jobs=-1)(delayed(decrypt_key)(key, privatekey) for key in encrypted_keys)
     for key in decrypting:
         if key:
             decrypted_keys.append(key)
@@ -76,32 +77,25 @@ def encrypt_and_save_session_for_auto_import(service, key, contributor_id = None
     redis = get_redis()
 
     rsa_key_der = b64decode(config.pubkey.strip())
-    rsa_key_pub = RSA.importKey(key_der)
-    rsa_cipher = PKCS1_OAEP.new(key_pub)
+    rsa_key_pub = RSA.importKey(rsa_key_der)
+    rsa_cipher = PKCS1_OAEP.new(rsa_key_pub)
 
-    aes_cipher = None
-    encrypted_aes_key = redis.get('autoimport-aeskey') # base64'd encrypted aes key
-    if not encrypted_aes_key:
-        # create the key, encrypt it with rsa, and save to redis
-        new_aes_key = get_random_bytes(16)
-        aes_cipher = AES.new(key)
-        encrypted_bin_aes_key = rsa_cipher.encrypt(new_aes_key)
-        encrypted_aes_key = b64encode(encrypted_bin_aes_key).decode('utf-8')
-        redis.set('autoimport-aeskey', encrypted_aes_key)
-    else:
-        # decrypt the key
-        decrypted_aes_key = rsa_cipher.decrypt(b64decode(encrypted_aes_key))
-        aes_cipher = AES.new(decrypted_aes_key)
+    # create the key, encrypt it with rsa, and save to redis
+    new_aes_key = get_random_bytes(16)
+    aes_cipher = AES.new(new_aes_key, AES.MODE_EAX)
+    encrypted_bin_aes_key = rsa_cipher.encrypt(new_aes_key)
+    encrypted_aes_key = b64encode(encrypted_bin_aes_key)
 
-    encrypted_bin_key = aes_cipher.encrypt(key.encode())
-    encrypted_key = b64encode(encrypted_bin_key).decode('utf-8')
+    nonce = aes_cipher.nonce
+    ciphertext, tag = aes_cipher.encrypt_and_digest(key.encode())
+    key_cryptstuff = '#' + b64encode(encrypted_aes_key + b'|' + b64encode(nonce) + b'|' + b64encode(ciphertext) + b'|' + b64encode(tag)).decode('utf-8')
 
     conn = get_raw_conn()
     cursor = conn.cursor()
     model = {
         'service': service,
         'discord_channel_ids': discord_channel_ids,
-        'encrypted_key': encrypted_key,
+        'encrypted_key': key_cryptstuff,
         'contributor_id': int(contributor_id) if contributor_id else None,
         'hash': hashlib.sha256((key + config.salt).encode('utf-8')).hexdigest()
     }
