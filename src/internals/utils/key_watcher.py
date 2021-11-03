@@ -36,6 +36,8 @@ def watch(queue_limit=2000):
     redis = get_redis()
     threads_to_run = []
     while True:
+        start_time = time.time()
+
         for thread in threads_to_run:
             if not thread.is_alive():
                 threads_to_run.remove(thread)
@@ -87,3 +89,8 @@ def watch(queue_limit=2000):
                     threads_to_run.append(thread)
                 else:
                     logger.log(import_id, f'Error starting import. Your import id is {import_id}.')
+    
+        # there should be at least a second between executions
+        end_time = time.time()
+        if (end_time - start_time < 1):
+            time.sleep(end_time - start_time)
