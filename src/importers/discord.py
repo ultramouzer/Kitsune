@@ -30,7 +30,6 @@ def test_key_for_auto_import (import_id, key, channel_ids_str, contributor_id, a
         scraper.raise_for_status()
     except requests.HTTPError as e:
         if (e.response.status_code == 401):
-            delete_keys([f'imports:{import_id}'])
             if (key_id):
                 kill_key(key_id)
         return
@@ -203,5 +202,3 @@ def import_posts(import_id, key, channel_ids_str, contributor_id, allowed_to_aut
             import_channel(channel_id, import_id, key)
     else:
         log(import_id, f"No channels has been supplied. No posts will be imported.", to_client = True)
-    
-    delete_keys([f'imports:{import_id}'])

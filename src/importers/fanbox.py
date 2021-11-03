@@ -127,7 +127,6 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
     except requests.HTTPError as e:
         log(import_id, f'HTTP error when contacting Fanbox API ({url}). Stopping import.', 'exception')
         if (e.response.status_code == 401):
-            delete_keys([f'imports:{import_id}'])
             if (key_id):
                 kill_key(key_id)
         return
@@ -320,8 +319,6 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
                     return
             else:
                 log(import_id, f'Finished scanning for posts')
-                delete_keys([f'imports:{import_id}'])
                 return
     else:
         log(import_id, f'No posts detected.')
-        delete_keys([f'imports:{import_id}'])

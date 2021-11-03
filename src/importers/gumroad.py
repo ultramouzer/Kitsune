@@ -43,7 +43,6 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
     gumroad_data = soup.select_one('[data-react-class=LibraryPage]')
     if not gumroad_data:
         log(import_id, f"Can't log in; is your session key correct?")
-        delete_keys([f'imports:{import_id}'])
         if (key_id):
             kill_key(key_id)
         return
