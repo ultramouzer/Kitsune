@@ -11,11 +11,19 @@ pool = None
 
 def init():
     global pool
-    pool = redis.ConnectionPool(host=config.redis_host, port=config.redis_port)
+    pool = redis.ConnectionPool(host=config.redis_host, port=config.redis_port, db=0)
     return pool
+
+def init_mq():
+    global mq_pool
+    mq_pool = redis.ConnectionPool(host=config.redis_host, port=config.redis_port, db=1)
+    return mq_pool
 
 def get_redis():
     return redis.Redis(connection_pool=pool)
+
+def get_mq_redis():
+    return redis.Redis(connection_pool=mq_pool)
 
 def delete_keys(keys):
     conn = get_redis()

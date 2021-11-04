@@ -8,7 +8,7 @@ from .flask_thread import FlaskThread
 from src.internals.utils import logger
 from src.internals.utils.encryption import encrypt_and_log_session
 from src.lib.import_manager import import_posts
-from ..cache.redis import get_redis
+from ..cache.redis import get_mq_redis
 from src.importers import patreon
 from src.importers import fanbox
 from src.importers import subscribestar
@@ -23,7 +23,7 @@ def watch(queue_limit=2000):
     archiver_id = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(16))
     setthreadtitle(f'Kitsune Key Watcher|{archiver_id}')
 
-    redis = get_redis()
+    redis = get_mq_redis()
     threads_to_run = []
     while True:
         for thread in threads_to_run:
@@ -33,8 +33,9 @@ def watch(queue_limit=2000):
         for key in redis.scan_iter(match='imports:*'):
             key_data = redis.get(key)
             if key_data:
+                import_id = key.decode('utf-8').split(':')[1]
                 key_data = json.loads(key_data)
-                if redis.get(f"running_imports:{archiver_id}:{key_data['import_id']}"):
+                if redis.get(f"running_imports:{archiver_id}:{import_id}"):
                     continue
 
                 if len(threads_to_run) < queue_limit:
@@ -50,14 +51,13 @@ def watch(queue_limit=2000):
                     #     'channel_ids': channel_ids,
                     #     'contributor_id': contributor_id
                     # }
-                    import_id = key_data['import_id']
                     key = key_data['key']
                     service = key_data['service']
                     allowed_to_auto_import = key_data.get('auto_import', False)
                     allowed_to_save_session = key_data.get('save_session_key', False)
                     allowed_to_scrape_dms = key_data.get('save_dms', False)
-                    channel_ids = key_data['channel_ids']
-                    contributor_id = key_data['contributor_id']
+                    channel_ids = key_data.get('channel_ids')
+                    contributor_id = key_data.get('contributor_id')
 
                     if key and service and allowed_to_save_session:
                         try:
@@ -89,7 +89,7 @@ def watch(queue_limit=2000):
                         thread = FlaskThread(target=import_posts, args=(import_id, target, args))
                         thread.start()
                         threads_to_run.append(thread)
-                        redis.set(f"running_imports:{archiver_id}:{key_data['import_id']}", '1')
+                        redis.set(f"running_imports:{archiver_id}:{import_id}", '1')
                     else:
                         logger.log(import_id, f'Error starting import. Your import id is {import_id}.')
         
