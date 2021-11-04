@@ -100,7 +100,7 @@ def watch(queue_limit=2000):
                             threads_to_run.append(thread)
                             redis.set(f"running_imports:{archiver_id}:{import_id}", '1')
                         else:
-                            logger.log(import_id, f'Error starting import. Your import id is {import_id}.', 'exception')
+                            logger.log(import_id, f'Error starting import. Your import id is {import_id}.')
                     except KeyError:
                         logger.log(import_id, 'Exception occured while starting import due to missing data in payload.', 'exception', to_client=True)
                         delete_keys([key], mq=True)
