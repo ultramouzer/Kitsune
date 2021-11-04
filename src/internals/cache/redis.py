@@ -25,13 +25,13 @@ def get_redis():
 def get_mq_redis():
     return redis.Redis(connection_pool=mq_pool)
 
-def delete_keys(keys):
-    conn = get_redis()
+def delete_keys(keys, mq=False):
+    conn = get_redis() if not mq else get_mq_redis()
     for key in keys:
         conn.delete(key)
 
-def delete_keys_pattern(patterns):
-    redis = get_redis()
+def delete_keys_pattern(patterns, mq=False):
+    redis = get_redis() if not mq else get_mq_redis()
     for pattern in patterns:
         for key in redis.scan_iter(match=pattern):
             redis.delete(key)

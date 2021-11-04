@@ -21,8 +21,9 @@ from setproctitle import setthreadtitle
 # remember to clear logs after successful import
 def watch(queue_limit=2000):
     archiver_id = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(16))
-    delete_keys_pattern([f"running_imports:[^{archiver_id}]:*"])
+    delete_keys_pattern([f"running_imports:*"], mq=True)
     setthreadtitle(f'Kitsune Key Watcher|{archiver_id}')
+    print(f'Key watcher ({archiver_id}) is starting!')
 
     redis = get_mq_redis()
     threads_to_run = []
@@ -39,7 +40,7 @@ def watch(queue_limit=2000):
                     key_data = json.loads(key_data)
                 except json.decoder.JSONDecodeError:
                     print(f'An decoding error occured while processing import request {key.decode("utf-8")}; are you sending malformed JSON?')
-                    delete_keys([key])
+                    delete_keys([key], mq=True)
                     continue
                 
                 if redis.get(f"running_imports:{archiver_id}:{import_id}"):
@@ -59,7 +60,7 @@ def watch(queue_limit=2000):
                         #     'channel_ids': channel_ids,
                         #     'contributor_id': contributor_id
                         # }
-                        key = key_data['key']
+                        service_key = key_data['key']
                         service = key_data['service']
                         allowed_to_auto_import = key_data.get('auto_import', False)
                         allowed_to_save_session = key_data.get('save_session_key', False)
@@ -67,30 +68,30 @@ def watch(queue_limit=2000):
                         channel_ids = key_data.get('channel_ids')
                         contributor_id = key_data.get('contributor_id')
 
-                        if key and service and allowed_to_save_session:
+                        if service_key and service and allowed_to_save_session:
                             try:
-                                encrypt_and_log_session(import_id, service, key)
+                                encrypt_and_log_session(import_id, service, service_key)
                             except:
                                 logger.log(import_id, 'Exception occured while logging session.', 'exception', to_client=False)
 
                         if service == 'patreon':
                             target = patreon.import_posts
-                            args = (key, allowed_to_scrape_dms, contributor_id, allowed_to_auto_import, None)
+                            args = (service_key, allowed_to_scrape_dms, contributor_id, allowed_to_auto_import, None)
                         elif service == 'fanbox':
                             target = fanbox.import_posts
-                            args = (key, contributor_id, allowed_to_auto_import, None)
+                            args = (service_key, contributor_id, allowed_to_auto_import, None)
                         elif service == 'subscribestar':
                             target = subscribestar.import_posts
-                            args = (key, contributor_id, allowed_to_auto_import, None)
+                            args = (service_key, contributor_id, allowed_to_auto_import, None)
                         elif service == 'gumroad':
                             target = gumroad.import_posts
-                            args = (key, contributor_id, allowed_to_auto_import, None)
+                            args = (service_key, contributor_id, allowed_to_auto_import, None)
                         elif service == 'fantia':
                             target = fantia.import_posts
-                            args = (key, contributor_id, allowed_to_auto_import, None)
+                            args = (service_key, contributor_id, allowed_to_auto_import, None)
                         elif service == 'discord':
                             target = discord.import_posts
-                            args = (key, channel_ids.strip().replace(" ", ""), contributor_id, allowed_to_auto_import, None)
+                            args = (service_key, channel_ids.strip().replace(" ", ""), contributor_id, allowed_to_auto_import, None)
 
                         if target is not None and args is not None:
                             logger.log(import_id, f'Starting import. Your import id is {import_id}.')
@@ -102,6 +103,6 @@ def watch(queue_limit=2000):
                             logger.log(import_id, f'Error starting import. Your import id is {import_id}.')
                     except KeyError:
                         logger.log(import_id, 'Exception occured while starting import due to missing data in payload.', 'exception', to_client=True)
-                        delete_keys([key])
+                        delete_keys([key], mq=True)
         
         time.sleep(1)
