@@ -32,7 +32,7 @@ def watch(queue_limit=2000):
             if not thread.is_alive():
                 threads_to_run.remove(thread)
         
-        for key in redis.scan_iter(match='imports:*'):
+        for key in redis.keys('imports:*'):
             key_data = redis.get(key)
             if key_data:
                 import_id = key.decode('utf-8').split(':')[1]
