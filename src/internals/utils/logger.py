@@ -1,5 +1,7 @@
 from flask import current_app, session
 
+import datetime
+
 from threading import Lock
 from .utils import get_value
 from ..cache.redis import get_redis
@@ -10,7 +12,7 @@ def log(log_id, msg, level = 'debug', to_client = True):
     redis = get_redis()
     log_lock.acquire()
     try:
-        msg = f'[{log_id}]: {msg}'
+        msg = f'[{log_id}]@{datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}: {msg}'
         log_func = getattr(current_app.logger, level)
         log_func(msg)
 
