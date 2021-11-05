@@ -33,7 +33,7 @@ def delete_keys(keys, mq=False):
 def delete_keys_pattern(patterns, mq=False):
     redis = get_redis() if not mq else get_mq_redis()
     for pattern in patterns:
-        for key in redis.keys(pattern):
+        for key in redis.scan_iter(match=pattern):
             redis.delete(key)
 
 def serialize_dict(data):
