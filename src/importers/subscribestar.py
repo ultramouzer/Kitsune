@@ -43,7 +43,7 @@ def strip_tags(html):
     return s.get_data()
 
 def import_posts(import_id, key, contributor_id, allowed_to_auto_import, key_id):
-    setthreadtitle(f'Kitsune Import|{import_id}')
+    setthreadtitle(f'KI{import_id}')
 
     jar = requests.cookies.RequestsCookieJar()
     jar.set('auth_token', key)

@@ -26,7 +26,7 @@ from ..internals.utils.utils import get_value
 from ..internals.utils.scrapper import create_scrapper_session
 
 def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import = None, key_id = None, offset = 1):
-    setthreadtitle(f'Kitsune Import|{import_id}')
+    setthreadtitle(f'KI{import_id}')
     try:
         scraper = create_scrapper_session().get(
             "https://app.gumroad.com/library",

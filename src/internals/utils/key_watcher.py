@@ -22,7 +22,7 @@ from setproctitle import setthreadtitle
 def watch(queue_limit=2000):
     archiver_id = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(16))
     delete_keys_pattern([f"running_imports:*"], mq=True)
-    setthreadtitle(f'Kitsune Key Watcher|{archiver_id}')
+    setthreadtitle(f'KWATCHER')
     print(f'Key watcher ({archiver_id}) is starting!')
 
     redis = get_mq_redis()

@@ -3,7 +3,7 @@ from setproctitle import setthreadtitle
 import time
 
 def run():
-    setthreadtitle('Kitsune Indexer')
+    setthreadtitle('KINDEXER')
     while True:
         index_artists()
         time.sleep(300)

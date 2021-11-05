@@ -114,7 +114,7 @@ def import_comments(key, post_id, user_id, import_id, existing_comment_ids):
                 return
 
 def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import = None, key_id = None, url = 'https://api.fanbox.cc/post.listSupporting?limit=50'):
-    setthreadtitle(f'Kitsune Import|{import_id}')
+    setthreadtitle(f'KI{import_id}')
     try:
         scraper = create_scrapper_session(useCloudscraper=False).get(
             url,

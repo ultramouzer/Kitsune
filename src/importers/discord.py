@@ -193,7 +193,7 @@ def process_channel(channel_id, server_id, import_id, key, before = None):
             return True
 
 def import_posts(import_id, key, channel_ids_str, contributor_id, allowed_to_auto_import, key_id):
-    setthreadtitle(f'Kitsune Import|{import_id}')
+    setthreadtitle(f'KI{import_id}')
     test_key_for_auto_import(import_id, key, channel_ids_str, contributor_id, allowed_to_auto_import, key_id)
     channel_ids = channel_ids_str.split(',')
     if len(channel_ids) > 0:
