@@ -74,7 +74,7 @@ def autoimport_api():
         log_import_id(key['id'], import_id)
         threads.append(FlaskThread(target=import_posts, args=(import_id, target, args)))
 
-    FlaskThread(target=thread_master.run, args=(threads,)).run()
+    FlaskThread(target=thread_master.run, args=(threads,)).start()
     
     return '', 200
 
