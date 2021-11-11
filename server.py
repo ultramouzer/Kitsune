@@ -31,7 +31,6 @@ logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 database.init()
 redis.init()
-redis.init_mq()
 
 if uwsgi.worker_id() == 0:
     backend = get_backend(f'postgres://{config.database_user}:{config.database_password}@{config.database_host}/{config.database_dbname}')

@@ -12,6 +12,7 @@ Assuming you are in the `archiver` folder:
 1. Create `config.py` file:
     ```sh
     cp config.py.example config.py
+    cp redis_map.py.example redis_map.py
     ```
 
 2. Create a virtual environment:
