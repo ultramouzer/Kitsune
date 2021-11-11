@@ -8,7 +8,7 @@ from .flask_thread import FlaskThread
 from src.internals.utils import logger
 from src.internals.utils.encryption import encrypt_and_log_session
 from src.lib.import_manager import import_posts
-from ..cache.redis import get_mq_redis, delete_keys, delete_keys_pattern
+from ..cache.redis import get_redis, delete_keys, delete_keys_pattern, scan_keys
 from src.importers import patreon
 from src.importers import fanbox
 from src.importers import subscribestar
@@ -21,18 +21,18 @@ from setproctitle import setthreadtitle
 # remember to clear logs after successful import
 def watch(queue_limit=2000):
     archiver_id = ''.join(random.choice(string.ascii_letters + string.digits) for x in range(16))
-    delete_keys_pattern([f"running_imports:*"], mq=True)
+    delete_keys_pattern([f"running_imports:*"])
     setthreadtitle(f'KWATCHER')
     print(f'Key watcher ({archiver_id}) is starting!')
 
-    redis = get_mq_redis()
+    redis = get_redis()
     threads_to_run = []
     while True:
         for thread in threads_to_run:
             if not thread.is_alive():
                 threads_to_run.remove(thread)
         
-        for key in redis.scan_iter(match='imports:*'):
+        for key in scan_keys('imports:*'):
             key_data = redis.get(key)
             if key_data:
                 import_id = key.decode('utf-8').split(':')[1]
@@ -40,7 +40,7 @@ def watch(queue_limit=2000):
                     key_data = json.loads(key_data)
                 except json.decoder.JSONDecodeError:
                     print(f'An decoding error occured while processing import request {key.decode("utf-8")}; are you sending malformed JSON?')
-                    delete_keys([key], mq=True)
+                    delete_keys([key])
                     continue
                 
                 if redis.get(f"running_imports:{archiver_id}:{import_id}"):
@@ -94,7 +94,7 @@ def watch(queue_limit=2000):
                             args = (service_key, channel_ids.strip().replace(" ", ""), contributor_id, allowed_to_auto_import, None)
                         else:
                             logger.log(import_id, f'Service "{service}" unsupported.')
-                            delete_keys([key], mq=True)
+                            delete_keys([key])
                             continue
 
                         if target is not None and args is not None:
@@ -107,6 +107,6 @@ def watch(queue_limit=2000):
                             logger.log(import_id, f'Error starting import. Your import id is {import_id}.')
                     except KeyError:
                         logger.log(import_id, 'Exception occured while starting import due to missing data in payload.', 'exception', to_client=True)
-                        delete_keys([key], mq=True)
+                        delete_keys([key])
         
         time.sleep(1)
