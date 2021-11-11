@@ -6,39 +6,34 @@ import ujson
 import redis
 from os import getenv
 import config
-import rb
-import redis_map
 
-cluster: rb.Cluster = None
-
-class KitsuneRouter(rb.BaseRouter):
-    def get_host_for_key(self, key):
-        top_level_prefix_of_key = key.split(':')[0]
-        if (redis_map.keyspaces.get(top_level_prefix_of_key) is not None):
-            return redis_map.keyspaces[top_level_prefix_of_key]
-        else:
-            raise rb.UnroutableCommand()
+pool = None
 
 def init():
-    global cluster
-    cluster = rb.Cluster(hosts=redis_map.nodes, host_defaults=redis_map.node_options)
-    return cluster
+    global pool
+    pool = redis.ConnectionPool(host=config.redis_host, port=config.redis_port, db=0)
+    return pool
+
+def init_mq():
+    global mq_pool
+    mq_pool = redis.ConnectionPool(host=config.redis_host, port=config.redis_port, db=1)
+    return mq_pool
 
 def get_redis():
-    return cluster.get_routing_client()
+    return redis.Redis(connection_pool=pool)
 
-def scan_keys(pattern):
-    return cluster.get_local_client_for_key(pattern).scan_iter(match=pattern)
+def get_mq_redis():
+    return redis.Redis(connection_pool=mq_pool)
 
-def delete_keys(keys):
-    conn = get_redis()
+def delete_keys(keys, mq=False):
+    conn = get_redis() if not mq else get_mq_redis()
     for key in keys:
         conn.delete(key)
 
-def delete_keys_pattern(patterns):
-    redis = get_redis()
+def delete_keys_pattern(patterns, mq=False):
+    redis = get_redis() if not mq else get_mq_redis()
     for pattern in patterns:
-        for key in scan_keys(pattern):
+        for key in redis.scan_iter(match=pattern):
             redis.delete(key)
 
 def serialize_dict(data):
