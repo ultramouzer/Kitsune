@@ -9,32 +9,27 @@ from ..internals.cache.redis import delete_keys, delete_keys_pattern
 from ..internals.database.database import get_raw_conn, return_conn, get_cursor
 
 def delete_dm_cache_keys(service, artist_id):
-    pass
-    # artist_id = str(artist_id)
-    # delete_keys([ 'dms:' + service + ':' + artist_id ])
+    artist_id = str(artist_id)
+    delete_keys([ 'dms:' + service + ':' + artist_id ])
 
 def delete_comment_cache_keys(service, artist_id, post_id):
-    pass
-    # artist_id = str(artist_id)
-    # delete_keys([ 'comments:' + service + ':' + artist_id ])
+    artist_id = str(artist_id)
+    delete_keys([ 'comments:' + service + ':' + artist_id ])
 
 def delete_artist_cache_keys(service, artist_id):
-    pass
-    # artist_id = str(artist_id)
-    # keys = [
-    #     'artists_by_service:' + service,
-    #     'artist:' + service + ':' + artist_id,
-    #     'artist_post_count:' + service + ':' + artist_id,
-    #     'posts_by_artist:' + service + ':' + artist_id,
-    # ]
-    # wildcard_keys = [
-    #     'artist_posts_offset:' + service + ':' + artist_id + ':*',
-    #     'next_post:' + service + ':' + artist_id + ':*',
-    #     'previous_post:' + service + ':' + artist_id + ':*'
-    # ]
+    artist_id = str(artist_id)
+    keys = [
+        'artists_by_service:' + service,
+        'artist:' + service + ':' + artist_id,
+        'artist_post_count:' + service + ':' + artist_id,
+    ]
+    wildcard_keys = [
+        'next_post:' + service + ':' + artist_id + ':*',
+        'previous_post:' + service + ':' + artist_id + ':*'
+    ]
 
-    # delete_keys(keys)
-    # delete_keys_pattern(wildcard_keys)
+    delete_keys(keys)
+    delete_keys_pattern(wildcard_keys)
 
 def get_all_dnp():
     conn = get_raw_conn()
@@ -64,13 +59,12 @@ def get_all_artist_flagged_post_ids(service, artist_id):
     return existing_flags
 
 def delete_all_artist_keys():
-    pass
-    # keys = [
-    #     'non_discord_artist_keys',
-    #     'non_discord_artists'
-    # ]
+    keys = [
+        'non_discord_artist_keys',
+        'non_discord_artists'
+    ]
     
-    # delete_keys(keys)
+    delete_keys(keys)
 
 def dm_exists(service, artist_id, dm_id, content):
     conn = get_raw_conn()

@@ -102,5 +102,5 @@ def encrypt_and_save_session_for_auto_import(service, key, contributor_id = None
     cursor.execute(query, list(model.values()))
     conn.commit()
     return_conn(conn)
-    # if contributor_id:
-    #     delete_keys(['saved_keys:' + str(contributor_id)])
+    if contributor_id:
+        delete_keys(['saved_keys:' + str(contributor_id)])
