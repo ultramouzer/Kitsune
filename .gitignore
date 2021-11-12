@@ -142,3 +142,4 @@ cython_debug/
 data/
 config.py
 yoyo.ini
+redis_map.py
