@@ -35,7 +35,7 @@ def watch(queue_limit=2000):
         for key in scan_keys('imports:*'):
             key_data = redis.get(key)
             if key_data:
-                import_id = key.decode('utf-8').split(':')[1]
+                import_id = key.split(':')[1]
                 try:
                     key_data = json.loads(key_data)
                 except json.decoder.JSONDecodeError:

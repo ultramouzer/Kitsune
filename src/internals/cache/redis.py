@@ -13,7 +13,7 @@ cluster: rb.Cluster = None
 
 class KitsuneRouter(rb.BaseRouter):
     def get_host_for_key(self, key):
-        top_level_prefix_of_key = key.decode('utf-8').split(':')[0]
+        top_level_prefix_of_key = key.split(':')[0]
         if (redis_map.keyspaces.get(top_level_prefix_of_key) is not None):
             return redis_map.keyspaces[top_level_prefix_of_key]
         else:
@@ -21,7 +21,7 @@ class KitsuneRouter(rb.BaseRouter):
 
 def init():
     global cluster
-    cluster = rb.Cluster(hosts=redis_map.nodes, host_defaults=redis_map.node_options, router_cls=KitsuneRouter)
+    cluster = rb.Cluster(hosts=redis_map.nodes, host_defaults=redis_map.node_options, router_cls=KitsuneRouter, pool_options={"encoding": "utf-8", "decode_responses": True})
     return cluster
 
 def get_redis():

@@ -34,4 +34,4 @@ def get_logs(log_id):
     finally:
         log_lock.release()
 
-    return list(map(lambda msg: msg.decode('utf-8'), messages))
+    return list(map(lambda msg: msg, messages))
