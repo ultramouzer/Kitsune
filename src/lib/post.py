@@ -10,18 +10,16 @@ from os.path import join, exists
 import config
 
 def delete_post_cache_keys(service, artist_id, post_id):
-    pass
-    # keys = [
-    #     'post:' + service + ':' + str(artist_id) + ':' + str(post_id)
-    # ]
+    keys = [
+        'post:' + service + ':' + str(artist_id) + ':' + str(post_id)
+    ]
 
-    # delete_keys(keys)
+    delete_keys(keys)
 
 def delete_all_post_cache_keys():
-    pass
-    # keys = ['all_post_keys']
+    keys = ['all_post_keys']
 
-    # delete_keys(keys)
+    delete_keys(keys)
 
 def post_exists(service, artist_id, post_id):
     conn = get_raw_conn()
