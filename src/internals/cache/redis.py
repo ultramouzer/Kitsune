@@ -28,7 +28,7 @@ def get_redis():
     return cluster.get_routing_client()
 
 def scan_keys(pattern):
-    return cluster.get_local_client_for_key(pattern).scan_iter(match=pattern)
+    return cluster.get_local_client_for_key(pattern).scan_iter(match=pattern, count=5000)
 
 def delete_keys(keys):
     conn = get_redis()
