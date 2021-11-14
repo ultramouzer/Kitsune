@@ -1,6 +1,7 @@
 # VSCode files
 .vscode
 *.code-workspace
+.setup.py
 
 # virtual environment
 venv/

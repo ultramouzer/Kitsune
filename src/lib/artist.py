@@ -4,17 +4,21 @@ import requests
 import logging
 import config
 
+from configs.derived_vars import is_development
 from ..internals.utils.proxy import get_proxy
 from ..internals.cache.redis import delete_keys, delete_keys_pattern
 from ..internals.database.database import get_raw_conn, return_conn, get_cursor
 
+
 def delete_dm_cache_keys(service, artist_id):
     artist_id = str(artist_id)
-    delete_keys([ 'dms:' + service + ':' + artist_id ])
+    delete_keys(['dms:' + service + ':' + artist_id])
+
 
 def delete_comment_cache_keys(service, artist_id, post_id):
     artist_id = str(artist_id)
-    delete_keys([ 'comments:' + service + ':' + artist_id ])
+    delete_keys(['comments:' + service + ':' + artist_id])
+
 
 def delete_artist_cache_keys(service, artist_id):
     artist_id = str(artist_id)
@@ -31,6 +35,7 @@ def delete_artist_cache_keys(service, artist_id):
     delete_keys(keys)
     delete_keys_pattern(wildcard_keys)
 
+
 def get_all_dnp():
     conn = get_raw_conn()
     cursor = conn.cursor()
@@ -39,6 +44,7 @@ def get_all_dnp():
     cursor.close()
     return_conn(conn)
     return results
+
 
 def get_all_artist_post_ids(service, artist_id):
     conn = get_raw_conn()
@@ -49,6 +55,7 @@ def get_all_artist_post_ids(service, artist_id):
     return_conn(conn)
     return existing_posts
 
+
 def get_all_artist_flagged_post_ids(service, artist_id):
     conn = get_raw_conn()
     cursor = conn.cursor()
@@ -58,13 +65,15 @@ def get_all_artist_flagged_post_ids(service, artist_id):
     return_conn(conn)
     return existing_flags
 
+
 def delete_all_artist_keys():
     keys = [
         'non_discord_artist_keys',
         'non_discord_artists'
     ]
-    
+
     delete_keys(keys)
+
 
 def dm_exists(service, artist_id, dm_id, content):
     conn = get_raw_conn()
@@ -78,11 +87,13 @@ def dm_exists(service, artist_id, dm_id, content):
     else:
         conn2 = get_raw_conn()
         cursor2 = conn2.cursor()
-        cursor2.execute("SELECT * FROM dms WHERE content = %s AND \"user\" = %s AND service = %s", (content, artist_id, service,))
+        cursor2.execute("SELECT * FROM dms WHERE content = %s AND \"user\" = %s AND service = %s",
+                        (content, artist_id, service,))
         existing_dms_by_content = cursor2.fetchall()
         cursor2.close()
         return_conn(conn2)
         return len(existing_dms_by_content) > 0
+
 
 def is_artist_dnp(service, artist_id):
     conn = get_raw_conn()
@@ -93,15 +104,29 @@ def is_artist_dnp(service, artist_id):
     return_conn(conn)
     return len(results) > 0
 
+
 def index_artists():
     conn = get_raw_conn()
     cursor = conn.cursor()
-
-    cursor.execute('select "user", "service" from "posts" as "post" where not exists (select * from "lookup" where id = post."user" and service = post.service) group by "user", "service"')
+    query = """
+        SELECT "user", "service"
+        FROM "posts" AS "post"
+        WHERE
+            NOT EXISTS (
+                SELECT *
+                FROM "lookup"
+                WHERE
+                    id = post."user"
+                    AND service = post.service
+            )
+        GROUP BY "user", "service"
+    """
+    cursor.execute(query)
     results = cursor.fetchall()
 
     for post in results:
         try:
+            model = None
             if post["service"] == 'patreon':
                 scraper = cloudscraper.create_scraper()
                 user = scraper.get('https://api.patreon.com/user/' + post["user"], proxies=get_proxy()).json()
@@ -111,7 +136,8 @@ def index_artists():
                     "service": "patreon"
                 }
             elif post["service"] == 'fanbox':
-                user = requests.get('https://api.fanbox.cc/creator.get?userId=' + post["user"], proxies=get_proxy(), headers={"origin":"https://fanbox.cc"}).json()
+                user = requests.get('https://api.fanbox.cc/creator.get?userId=' +
+                                    post["user"], proxies=get_proxy(), headers={"origin": "https://fanbox.cc"}).json()
                 model = {
                     "id": post["user"],
                     "name": user["body"]["creatorId"],
@@ -143,24 +169,36 @@ def index_artists():
                     "service": "fantia"
                 }
             elif post["service"] == 'dlsite':
-                resp = requests.get('https://www.dlsite.com/eng/circle/profile/=/maker_id/' + post["user"], proxies=get_proxy()).text
+                resp = requests.get('https://www.dlsite.com/eng/circle/profile/=/maker_id/' +
+                                    post["user"], proxies=get_proxy()).text
                 soup = BeautifulSoup(resp, 'html.parser')
                 model = {
                     "id": post["user"],
                     "name": soup.find('strong', class_='prof_maker_name').string,
                     "service": "dlsite"
                 }
+            elif is_development:
+                from development import service_name
 
-            write_model_to_db(conn, cursor, model)
+                # if post["service"] == service_name:
+                #     model = dict(
+                #         id="",
+                #         name="",
+                #         service=service_name
+                #     )
 
-            if (config.ban_url):
-                requests.request('BAN', f"{config.ban_url}/{post['service']}/user/" + post['user'])
-            delete_artist_cache_keys(post['service'], post['user'])
+            if model:
+                write_model_to_db(conn, cursor, model)
+
+                if (config.ban_url):
+                    requests.request('BAN', f"{config.ban_url}/{post['service']}/user/" + post['user'])
+                delete_artist_cache_keys(post['service'], post['user'])
         except Exception:
             logging.exception(f"Error while indexing user {post['user']}")
 
     cursor.close()
     return_conn(conn)
+
 
 def update_artist(service, artist_id):
     conn = get_raw_conn()
@@ -170,6 +208,7 @@ def update_artist(service, artist_id):
         conn.commit()
     finally:
         return_conn(conn)
+
 
 def index_discord_channel_server(channel_data, server_data):
     conn = get_raw_conn()
@@ -195,20 +234,21 @@ def index_discord_channel_server(channel_data, server_data):
             "name": channel_data['name'],
             "service": "discord-channel"
         }
-        write_model_to_db(conn, cursor, model)       
+        write_model_to_db(conn, cursor, model)
 
     cursor.close()
     return_conn(conn)
 
+
 def write_model_to_db(conn, cursor, model):
-        try:
-            columns = model.keys()
-            values = ['%s'] * len(model.values())
-            query = "INSERT INTO lookup ({fields}) VALUES ({values})".format(
-                fields = ','.join(columns),
-                values = ','.join(values)
-            )
-            cursor.execute(query, list(model.values()))
-            conn.commit()
-        except Exception:
-            logging.exception(f"Error while indexing {model['id']}")
+    try:
+        columns = model.keys()
+        values = ['%s'] * len(model.values())
+        query = "INSERT INTO lookup ({fields}) VALUES ({values})".format(
+            fields=','.join(columns),
+            values=','.join(values)
+        )
+        cursor.execute(query, list(model.values()))
+        conn.commit()
+    except Exception:
+        logging.exception(f"Error while indexing {model['id']}")

@@ -23,22 +23,24 @@ from ..importers import fantia
 
 api = Blueprint('api', __name__)
 
+
 @api.route('/api/autoimport', methods=['POST'])
 def autoimport_api():
     prv_key = request.form.get('private_key')
 
     if not prv_key:
         return "No private key provided.", 401
-    
+
     # migrate v1 (no hash) keys
     keys_to_migrate = None
     try:
-        keys_to_migrate = decrypt_all_good_keys(prv_key, v1 = True)
+        keys_to_migrate = decrypt_all_good_keys(prv_key, v1=True)
     except:
         return "(v1) Error while decrypting session tokens. The private key may be incorrect.", 401
-    
+
     for key in keys_to_migrate:
-        encrypt_and_save_session_for_auto_import(key['service'], key['decrypted_key'], contributor_id = key['contributor_id'], discord_channel_ids = key['discord_channel_ids'])
+        encrypt_and_save_session_for_auto_import(
+            key['service'], key['decrypted_key'], contributor_id=key['contributor_id'], discord_channel_ids=key['discord_channel_ids'])
         revoke_v1_key(key['id'])
 
     keys_to_import = None
@@ -75,8 +77,9 @@ def autoimport_api():
         threads.append(FlaskThread(target=import_posts, args=(import_id, target, args)))
 
     FlaskThread(target=thread_master.run, args=(threads,)).start()
-    
+
     return '', 200
+
 
 @api.route('/api/import', methods=['POST'])
 def import_api():
@@ -124,10 +127,12 @@ def import_api():
 
     return import_id, 200
 
+
 @api.route('/api/logs/<import_id>', methods=['GET'])
 def get_logs(import_id):
     logs = logger.get_logs(import_id)
     return json.dumps(logs), 200
+
 
 @api.route('/api/upload/<path:path>', methods=['POST'])
 def upload_file(path):
@@ -138,6 +143,7 @@ def upload_file(path):
     filename = uniquify(os.path.join(config.download_path, path, secure_filename(uploaded_file.filename)))
     uploaded_file.save(os.path.join(config.download_path, path, filename))
     return os.path.join('/', path, filename), 200
+
 
 @api.route('/api/active_imports', methods=['GET'])
 def get_thread_count():

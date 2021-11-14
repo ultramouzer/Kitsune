@@ -1,8 +1,10 @@
 import string
+from datetime import datetime, timedelta
 from random import Random
 from .lorem import lorem_sentences
 
-from typing import List
+from typing import Any, List
+
 
 class Extended_Random(Random):
     """
@@ -11,8 +13,15 @@ class Extended_Random(Random):
     varchar_vocab = string.ascii_letters + string.digits
     text_vocab = string.printable
     sentence_list = lorem_sentences
+    unix_epoch_start = datetime.fromtimestamp(30256871)
+    max_date = None
 
-    def string(self, min_length: int, max_length: int, vocabulary: str = varchar_vocab):
+    def __init__(self, x: Any = ..., max_date: datetime = None) -> None:
+        super().__init__(x=x)
+        if max_date:
+            self.max_date = max_date
+
+    def string(self, min_length: int = 5, max_length: int = 25, vocabulary: str = varchar_vocab):
         "Creates a continious string with random letters."
         string_length = self.randint(min_length, max_length)
         result_string = ''.join(self.choice(vocabulary) for char in range(string_length))
@@ -21,22 +30,27 @@ class Extended_Random(Random):
 
     def varchar(self, min_length: int = 5, max_length: int = 20):
         """Generates `varchar` type of string."""
-        result_string = self.string(min_length, max_length, vocabulary= self.varchar_vocab)
+        result_string = self.string(min_length, max_length, vocabulary=self.varchar_vocab)
 
         return result_string
 
     def text(self, min_length: int = 20, max_length: int = 256):
         """Generates `text` type of string."""
-        result_string = self.string(min_length, max_length, vocabulary= self.text_vocab)
+        result_string = self.string(min_length, max_length, vocabulary=self.text_vocab)
 
         return result_string
 
     def boolean(self):
+        """
+        Returns random boolean value.
+        """
         result = bool(self.randint(0, 1))
         return result
 
-    def lorem_ipsum(self, min_paragraphs: int = 1,
-    max_paragraphs: int = 5, max_sentences: int = 7, sentence_list: List[str] = sentence_list):
+    def lorem_ipsum(self,
+                    min_paragraphs: int = 1,
+                    max_paragraphs: int = 5, max_sentences: int = 7, sentence_list: List[str] = sentence_list
+                    ):
         """Creates a semi-readable string."""
         paragraphs_amount = self.randint(min_paragraphs, max_paragraphs)
 
@@ -56,5 +70,10 @@ class Extended_Random(Random):
 
         return result
 
-    # def date(self):
-    #     pass
+    def date(self, min_date: datetime = unix_epoch_start) -> datetime:
+        """Returns random date."""
+        max_date = self.max_date if self.max_date else datetime.now()
+        int_delta = int((max_date - min_date).total_seconds())
+        random_second = self.randint(0, int_delta)
+        random_date = min_date + timedelta(seconds=random_second)
+        return random_date

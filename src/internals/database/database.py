@@ -6,7 +6,7 @@ from os import getenv
 import traceback
 import config
 
-pool = None
+pool: ThreadSafeConnectionPool = None
 
 def init():
     global pool

@@ -33,7 +33,8 @@ database.init()
 redis.init()
 
 if uwsgi.worker_id() == 0:
-    backend = get_backend(f'postgres://{config.database_user}:{config.database_password}@{config.database_host}/{config.database_dbname}')
+    backend = get_backend(
+        f'postgres://{config.database_user}:{config.database_password}@{config.database_host}/{config.database_dbname}')
     migrations = read_migrations('./migrations')
     with backend.lock():
         backend.apply_migrations(backend.to_apply(migrations))
@@ -42,6 +43,7 @@ if uwsgi.worker_id() == 0:
     if (config.pubsub):
         with app.app_context():
             FlaskThread(target=key_watcher.watch).start()
+
 
 @app.teardown_appcontext
 def close(e):
