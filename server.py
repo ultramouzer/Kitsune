@@ -11,15 +11,16 @@ from src.endpoints.icons import icons
 from src.endpoints.banners import banners
 from src.internals.database import database
 from src.internals.cache import redis
-
+from src.internals.utils.flask_thread import FlaskThread
 from src.lib.artist import index_artists
+from src.internals.utils import key_watcher, indexer
 from src.internals.database.database import get_raw_conn
 
 app = Flask(__name__)
 
 app.register_blueprint(api)
-app.register_blueprint(icons)
-app.register_blueprint(banners)
+# app.register_blueprint(icons)
+# app.register_blueprint(banners)
 if is_development:
     from development import development
     app.register_blueprint(development)
@@ -32,11 +33,17 @@ database.init()
 redis.init()
 
 if uwsgi.worker_id() == 0:
-    backend = get_backend(f'postgres://{config.database_user}:{config.database_password}@{config.database_host}/{config.database_dbname}')
+    backend = get_backend(
+        f'postgres://{config.database_user}:{config.database_password}@{config.database_host}/{config.database_dbname}')
     migrations = read_migrations('./migrations')
     with backend.lock():
         backend.apply_migrations(backend.to_apply(migrations))
-    index_artists()
+    with app.app_context():
+        FlaskThread(target=indexer.run).start()
+    if (config.pubsub):
+        with app.app_context():
+            FlaskThread(target=key_watcher.watch).start()
+
 
 @app.teardown_appcontext
 def close(e):

@@ -2,11 +2,12 @@ from src.internals.database.database import get_raw_conn, return_conn
 
 from typing import List
 
+
 def get_service_keys(amount: int) -> List[int]:
     conn = get_raw_conn()
     cursor = conn.cursor()
     args_dict = dict(
-        amount= amount
+        amount=amount
     )
     query = """
         SELECT id
@@ -19,11 +20,12 @@ def get_service_keys(amount: int) -> List[int]:
     return_conn(conn)
     return [key['id'] for key in keys] if keys else []
 
+
 def kill_service_keys(key_ids: List[str]):
     conn = get_raw_conn()
     cursor = conn.cursor()
     args_dict = dict(
-        key_ids= key_ids
+        key_ids=key_ids
     )
     query = """
         UPDATE saved_session_keys

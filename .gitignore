@@ -1,3 +1,6 @@
+# dev-only asset files
+development/assets
+
 # VSCode files
 *.code-workspace
 
@@ -142,3 +145,4 @@ cython_debug/
 data/
 config.py
 yoyo.ini
+redis_map.py

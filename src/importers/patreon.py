@@ -13,6 +13,7 @@ from os.path import join, splitext
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from retry import retry
+from setproctitle import setthreadtitle
 
 from websocket import create_connection
 from urllib.parse import urlparse
@@ -21,9 +22,10 @@ from gallery_dl import text
 from flask import current_app
 
 from ..internals.database.database import get_conn, get_raw_conn, return_conn
-from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, dm_exists, delete_comment_cache_keys, delete_dm_cache_keys
-from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists
+from ..lib.artist import index_artists, is_artist_dnp, update_artist, delete_artist_cache_keys, dm_exists, delete_comment_cache_keys, delete_dm_cache_keys, get_all_artist_post_ids, get_all_artist_flagged_post_ids, get_all_dnp
+from ..lib.post import post_flagged, post_exists, delete_post_flags, move_to_backup, delete_backup, restore_from_backup, comment_exists, get_comments_for_posts, get_comment_ids_for_user
 from ..lib.autoimport import encrypt_and_save_session_for_auto_import, kill_key
+from ..internals.cache.redis import delete_keys
 from ..internals.utils.download import download_file, DownloaderException
 from ..internals.utils.proxy import get_proxy
 from ..internals.utils.logger import log
@@ -544,7 +546,7 @@ def import_channel(auth_token, url, import_id, current_user, contributor_id, tim
 
             columns = post_model.keys()
             data = ['%s'] * len(post_model.values())
-            query = "INSERT INTO unapproved_dms ({fields}) VALUES ({values})".format(
+            query = "INSERT INTO unapproved_dms ({fields}) VALUES ({values}) ON CONFLICT DO NOTHING".format(
                 fields = ','.join(columns),
                 values = ','.join(data)
             )
@@ -601,10 +603,6 @@ def import_comment(comment, user_id, import_id):
     commenter_id = comment['relationships']['commenter']['data']['id']
     comment_id = comment['id']
     
-    if comment_exists('patreon', commenter_id, comment_id):
-        log(import_id, f"Skipping comment {comment_id} from post {post_id} because already exists", to_client = False)
-        return
-
     if (comment['attributes']['deleted_at']):
         log(import_id, f"Skipping comment {comment_id} from post {post_id} because it is deleted", to_client = False)
         return
@@ -624,7 +622,7 @@ def import_comment(comment, user_id, import_id):
 
     columns = post_model.keys()
     data = ['%s'] * len(post_model.values())
-    query = "INSERT INTO comments ({fields}) VALUES ({values})".format(
+    query = "INSERT INTO comments ({fields}) VALUES ({values}) ON CONFLICT DO NOTHING".format(
         fields = ','.join(columns),
         values = ','.join(data)
     )
@@ -640,7 +638,7 @@ def import_comment(comment, user_id, import_id):
         requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + user_id + '/post/' + post_model['post_id'])
     delete_comment_cache_keys(post_model['service'], user_id, post_model['post_id'])
 
-def import_comments(url, key, post_id, user_id, import_id):
+def import_comments(url, key, post_id, user_id, import_id, existing_comment_ids):
     try:
         scraper = create_scrapper_session().get(url, cookies = { 'session_id': key }, proxies=get_proxy())
         scraper_data = scraper.json()
@@ -652,27 +650,48 @@ def import_comments(url, key, post_id, user_id, import_id):
         log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
         return
     
-    for comment in scraper_data['data']:
-        comment_id = comment['id']
-        try:
-            import_comment(comment, user_id, import_id)
-        except Exception as e:
-            log(import_id, f"Error while importing comment {comment_id} from post {post_id}", 'exception', True)
-            continue
-    
-    if scraper_data.get('included'):
-        for included in scraper_data['included']:
-            if (included['type'] == 'comment'):
-                comment_id = comment['id']
-                try:
-                    import_comment(included, user_id, import_id)
-                except Exception as e:
-                    log(import_id, f"Error while importing comment {comment_id} from post {post_id}", 'exception', True)
+    all_comments = get_comments_for_posts('patreon', post_id)
+    while True:
+        for comment in scraper_data['data']:
+            comment_id = comment['id']
+            commenter_id = comment['relationships']['commenter']['data']['id']
+            try:
+                if len(list(filter(lambda comment: comment['id'] == comment_id, existing_comment_ids))) > 0:
+                    log(import_id, f"Skipping comment {comment_id} from post {post_id} because already exists", to_client = False)
                     continue
+                import_comment(comment, user_id, import_id)
+            except Exception as e:
+                log(import_id, f"Error while importing comment {comment_id} from post {post_id}", 'exception', True)
+                continue
     
-    if 'links' in scraper_data and 'next' in scraper_data['links']:
-        log(import_id, f"Processing next page of comments for post {post_id}", to_client = False)
-        import_comments(scraper_data['links']['next'], key, post_id, user_id, import_id)
+        if scraper_data.get('included'):
+            for included in scraper_data['included']:
+                if (included['type'] == 'comment'):
+                    comment_id = comment['id']
+                    commenter_id = comment['relationships']['commenter']['data']['id']
+                    try:
+                        if len(list(filter(lambda comment: comment['id'] == comment_id, existing_comment_ids))) > 0:
+                            log(import_id, f"Skipping comment {comment_id} from post {post_id} because already exists", to_client = False)
+                            continue
+                        import_comment(included, user_id, import_id)
+                    except Exception as e:
+                        log(import_id, f"Error while importing comment {comment_id} from post {post_id}", 'exception', True)
+                        continue
+        
+        if 'links' in scraper_data and 'next' in scraper_data['links']:
+            log(import_id, f"Processing next page of comments for post {post_id}", to_client = False)
+            try:
+                scraper = create_scrapper_session().get(scraper_data['links']['next'], cookies = { 'session_id': key }, proxies=get_proxy())
+                scraper_data = scraper.json()
+                scraper.raise_for_status()
+            except requests.HTTPError as e:
+                log(import_id, f"Status code {e.response.status_code} when contacting Patreon API.", 'exception')
+                return
+            except Exception:
+                log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
+                return
+        else:
+            return
 
 def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_auto_import = None, key_id = None): 
     try:
@@ -681,8 +700,9 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
         scraper.raise_for_status()
     except requests.HTTPError as e:
         log(import_id, f"Status code {e.response.status_code} when contacting Patreon API.", 'exception')
-        if (e.response.status_code == 401 and key_id):
-            kill_key(key_id)
+        if (e.response.status_code == 401):
+            if (key_id):
+                kill_key(key_id)
         return
     except Exception:
         log(import_id, 'Error connecting to cloudscraper. Please try again.', 'exception')
@@ -695,92 +715,119 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
         except:
             log(import_id, f"An error occured while saving your key for auto-import.", 'exception')
     
+    dnp = get_all_dnp()
+    post_ids_of_users = {}
+    flagged_post_ids_of_users = {}
+    comment_ids_of_users = {}
     user_id = None
-    for post in scraper_data['data']:
-        try:
-            user_id = post['relationships']['user']['data']['id']
-            post_id = post['id']
+    while True:
+        for post in scraper_data['data']:
+            try:
+                user_id = post['relationships']['user']['data']['id']
+                post_id = post['id']
 
-            if is_artist_dnp('patreon', user_id):
-                log(import_id, f"Skipping user {user_id} because they are in do not post list", to_client = True)
-                return
+                if len(list(filter(lambda artist: artist['id'] == user_id and artist['service'] == 'patreon', dnp))) > 0:
+                    log(import_id, f"Skipping user {user_id} because they are in do not post list", to_client = True)
+                    return
 
-            if not post['attributes']['current_user_can_view']:
-                log(import_id, f'Skipping {post_id} from user {user_id} because this post is not available for current subscription tier', to_client = True)
-                continue            
+                if not post['attributes']['current_user_can_view']:
+                    log(import_id, f'Skipping {post_id} from user {user_id} because this post is not available for current subscription tier', to_client = True)
+                    continue            
 
-            import_comments(comments_url.format(post_id), key, post_id, user_id, import_id)
+                if not comment_ids_of_users.get(user_id):
+                    comment_ids_of_users[user_id] = get_comment_ids_for_user('patreon', user_id)
+                import_comments(comments_url.format(post_id), key, post_id, user_id, import_id, comment_ids_of_users[user_id])
 
-            if post_exists('patreon', user_id, post_id) and not post_flagged('patreon', user_id, post_id):
-                log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
-                continue
+                # existence checking
+                if not post_ids_of_users.get(user_id):
+                    post_ids_of_users[user_id] = get_all_artist_post_ids('patreon', user_id)
+                if not flagged_post_ids_of_users.get(user_id):
+                    flagged_post_ids_of_users[user_id] = get_all_artist_flagged_post_ids('patreon', user_id)
+                if len(list(filter(lambda post: post['id'] == post_id, post_ids_of_users[user_id]))) > 0 and len(list(filter(lambda flag: flag['id'] == post_id, flagged_post_ids_of_users[user_id]))) == 0:
+                    log(import_id, f'Skipping post {post_id} from user {user_id} because already exists', to_client = True)
+                    continue
+                log(import_id, f"Starting import: {post_id} from user {user_id}")
 
-            log(import_id, f"Starting import: {post_id} from user {user_id}")
+                post_model = {
+                    'id': post_id,
+                    '"user"': user_id,
+                    'service': 'patreon',
+                    'title': post['attributes']['title'] or "",
+                    'content': '',
+                    'embed': {},
+                    'shared_file': False,
+                    'added': datetime.datetime.now(),
+                    'published': post['attributes']['published_at'],
+                    'edited': post['attributes']['edited_at'],
+                    'file': {},
+                    'attachments': []
+                }
 
-            post_model = {
-                'id': post_id,
-                '"user"': user_id,
-                'service': 'patreon',
-                'title': post['attributes']['title'] or "",
-                'content': '',
-                'embed': {},
-                'shared_file': False,
-                'added': datetime.datetime.now(),
-                'published': post['attributes']['published_at'],
-                'edited': post['attributes']['edited_at'],
-                'file': {},
-                'attachments': []
-            }
+                if post['attributes']['content']:
+                    post_model['content'] = post['attributes']['content']
+                    for image in text.extract_iter(post['attributes']['content'], '<img data-media-id="', '>'):
+                        download_url = text.extract(image, 'src="', '"')[0]
+                        path = urlparse(download_url).path
+                        ext = splitext(path)[1]
+                        fn = str(uuid.uuid4()) + ext
+                        _, hash_filename, _ = download_file(
+                            download_url,
+                            'patreon',
+                            user_id,
+                            post_id,
+                            name = fn,
+                            inline = True
+                        )
+                        post_model['content'] = post_model['content'].replace(download_url, hash_filename)
 
-            if post['attributes']['content']:
-                post_model['content'] = post['attributes']['content']
-                for image in text.extract_iter(post['attributes']['content'], '<img data-media-id="', '>'):
-                    download_url = text.extract(image, 'src="', '"')[0]
-                    path = urlparse(download_url).path
-                    ext = splitext(path)[1]
-                    fn = str(uuid.uuid4()) + ext
-                    _, hash_filename, _ = download_file(
-                        download_url,
+                if post['attributes']['embed']:
+                    post_model['embed']['subject'] = post['attributes']['embed']['subject']
+                    post_model['embed']['description'] = post['attributes']['embed']['description']
+                    post_model['embed']['url'] = post['attributes']['embed']['url']
+
+                if post['attributes']['post_file']:
+                    reported_filename, hash_filename, _ = download_file(
+                        post['attributes']['post_file']['url'],
                         'patreon',
                         user_id,
                         post_id,
-                        name = fn,
-                        inline = True
+                        name = post['attributes']['post_file']['name']
                     )
-                    post_model['content'] = post_model['content'].replace(download_url, hash_filename)
+                    post_model['file']['name'] = reported_filename
+                    post_model['file']['path'] = hash_filename
 
-            if post['attributes']['embed']:
-                post_model['embed']['subject'] = post['attributes']['embed']['subject']
-                post_model['embed']['description'] = post['attributes']['embed']['description']
-                post_model['embed']['url'] = post['attributes']['embed']['url']
+                for attachment in post['relationships']['attachments']['data']:
+                    reported_filename, hash_filename, _ = download_file(
+                        f"https://www.patreon.com/file?h={post_id}&i={attachment['id']}",
+                        'patreon',
+                        user_id,
+                        post_id,
+                        cookies = { 'session_id': key }
+                    )
+                    post_model['attachments'].append({
+                        'name': reported_filename,
+                        'path': hash_filename
+                    })
 
-            if post['attributes']['post_file']:
-                reported_filename, hash_filename, _ = download_file(
-                    post['attributes']['post_file']['url'],
-                    'patreon',
-                    user_id,
-                    post_id,
-                    name = post['attributes']['post_file']['name']
-                )
-                post_model['file']['name'] = reported_filename
-                post_model['file']['path'] = hash_filename
+                if post['relationships']['images']['data']:
+                    for image in post['relationships']['images']['data']:
+                        for media in list(filter(lambda included: included['id'] == image['id'], scraper_data['included'])):
+                            if media['attributes']['state'] != 'ready':
+                                continue
+                            reported_filename, hash_filename, _ = download_file(
+                                media['attributes']['download_url'],
+                                'patreon',
+                                user_id,
+                                post_id,
+                                name = media['attributes']['file_name']
+                            )
+                            post_model['attachments'].append({
+                                'name': reported_filename,
+                                'path': hash_filename
+                            })
 
-            for attachment in post['relationships']['attachments']['data']:
-                reported_filename, hash_filename, _ = download_file(
-                    f"https://www.patreon.com/file?h={post_id}&i={attachment['id']}",
-                    'patreon',
-                    user_id,
-                    post_id,
-                    cookies = { 'session_id': key }
-                )
-                post_model['attachments'].append({
-                    'name': reported_filename,
-                    'path': hash_filename
-                })
-
-            if post['relationships']['images']['data']:
-                for image in post['relationships']['images']['data']:
-                    for media in list(filter(lambda included: included['id'] == image['id'], scraper_data['included'])):
+                if post['relationships']['audio']['data']:
+                    for media in list(filter(lambda included: included['id'] == post['relationships']['audio']['data']['id'], scraper_data['included'])):
                         if media['attributes']['state'] != 'ready':
                             continue
                         reported_filename, hash_filename, _ = download_file(
@@ -795,63 +842,54 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
                             'path': hash_filename
                         })
 
-            if post['relationships']['audio']['data']:
-                for media in list(filter(lambda included: included['id'] == post['relationships']['audio']['data']['id'], scraper_data['included'])):
-                    if media['attributes']['state'] != 'ready':
-                        continue
-                    reported_filename, hash_filename, _ = download_file(
-                        media['attributes']['download_url'],
-                        'patreon',
-                        user_id,
-                        post_id,
-                        name = media['attributes']['file_name']
-                    )
-                    post_model['attachments'].append({
-                        'name': reported_filename,
-                        'path': hash_filename
-                    })
+                post_model['embed'] = json.dumps(post_model['embed'])
+                post_model['file'] = json.dumps(post_model['file'])
+                for i in range(len(post_model['attachments'])):
+                    post_model['attachments'][i] = json.dumps(post_model['attachments'][i])
 
-            post_model['embed'] = json.dumps(post_model['embed'])
-            post_model['file'] = json.dumps(post_model['file'])
-            for i in range(len(post_model['attachments'])):
-                post_model['attachments'][i] = json.dumps(post_model['attachments'][i])
+                columns = post_model.keys()
+                data = ['%s'] * len(post_model.values())
+                data[-1] = '%s::jsonb[]' # attachments
+                query = "INSERT INTO posts ({fields}) VALUES ({values}) ON CONFLICT (id, service) DO UPDATE SET {updates}".format(
+                    fields = ','.join(columns),
+                    values = ','.join(data),
+                    updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
+                )
+                conn = get_raw_conn()
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute(query, list(post_model.values()))
+                    conn.commit()
+                finally:
+                    return_conn(conn)
 
-            columns = post_model.keys()
-            data = ['%s'] * len(post_model.values())
-            data[-1] = '%s::jsonb[]' # attachments
-            query = "INSERT INTO posts ({fields}) VALUES ({values}) ON CONFLICT (id, service) DO UPDATE SET {updates}".format(
-                fields = ','.join(columns),
-                values = ','.join(data),
-                updates = ','.join([f'{column}=EXCLUDED.{column}' for column in columns])
-            )
-            conn = get_raw_conn()
-            try:
-                cursor = conn.cursor()
-                cursor.execute(query, list(post_model.values()))
-                conn.commit()
-            finally:
-                return_conn(conn)
+                delete_post_flags('patreon', user_id, post_id)
 
-            update_artist('patreon', user_id)
-            delete_post_flags('patreon', user_id, post_id)
+                if (config.ban_url):
+                    requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
+
+                log(import_id, f"Finished importing {post_id} from user {user_id}", to_client=False)
+            except Exception as e:
+                log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception', True)
+                continue
             
-            if (config.ban_url):
-                requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
+        if 'links' in scraper_data and 'next' in scraper_data['links']:
+            log(import_id, f'Finished processing page. Processing next page.')
+            try:
+                scraper = create_scrapper_session().get(scraper_data['links']['next'], cookies = { 'session_id': key }, proxies=get_proxy())
+                scraper_data = scraper.json()
+                scraper.raise_for_status()
+            except requests.HTTPError as e:
+                log(import_id, f"Status code {e.response.status_code} when contacting Patreon API.", 'exception')
+                return
+        else:
             delete_artist_cache_keys('patreon', user_id)
-
-            log(import_id, f"Finished importing {post_id} from user {user_id}", to_client=False)
-        except Exception as e:
-            log(import_id, f"Error while importing {post_id} from user {user_id}", 'exception', True)
-            continue
-    
-    if 'links' in scraper_data and 'next' in scraper_data['links']:
-        log(import_id, f'Finished processing page. Processing next page.')
-        import_campaign_page(scraper_data['links']['next'], key, import_id)
-    else:
-        log(import_id, f"Finished scanning for posts.")
-        index_artists()
+            update_artist('patreon', user_id)
+            log(import_id, f"Finished scanning for posts.")
+            return
 
 def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id, allowed_to_auto_import, key_id):
+    setthreadtitle(f'KI{import_id}')
     if (allowed_to_scrape_dms):
         log(import_id, f"Importing DMs...", to_client = True)
         import_dms(key, import_id, contributor_id)
@@ -861,5 +899,6 @@ def import_posts(import_id, key, allowed_to_scrape_dms, contributor_id, allowed_
         for campaign_id in campaign_ids:
             log(import_id, f"Importing campaign {campaign_id}", to_client = True)
             import_campaign_page(posts_url + str(campaign_id), key, import_id, contributor_id = contributor_id, allowed_to_auto_import = allowed_to_auto_import, key_id = key_id)
+        log(import_id, f"Finished scanning for posts.")
     else:
         log(import_id, f"No active subscriptions or invalid key. No posts will be imported.", to_client = True)
