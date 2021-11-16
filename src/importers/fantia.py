@@ -236,12 +236,10 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
                 finally:
                     return_conn(conn)
     
-                update_artist('fantia', user_id)
                 delete_post_flags('fantia', user_id, post_id)
                 
                 if (config.ban_url):
                     requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
-                delete_artist_cache_keys('fantia', user_id)
     
                 log(import_id, f"Finished importing {post_id} from user {user_id}", to_client=False)
             except Exception:
@@ -265,6 +263,8 @@ def import_fanclub(fanclub_id, import_id, jar, page = 1):
                 log(import_id, f'Status code {exc.response.status_code} when contacting Fantia API.', 'exception')
                 return
         else:
+            delete_artist_cache_keys('fantia', user_id)
+            update_artist('fantia', user_id)
             return
 
 def get_paid_fanclubs(import_id, jar):

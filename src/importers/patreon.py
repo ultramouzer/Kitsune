@@ -719,6 +719,7 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
     post_ids_of_users = {}
     flagged_post_ids_of_users = {}
     comment_ids_of_users = {}
+    user_id = None
     while True:
         for post in scraper_data['data']:
             try:
@@ -862,12 +863,10 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
                 finally:
                     return_conn(conn)
 
-                update_artist('patreon', user_id)
                 delete_post_flags('patreon', user_id, post_id)
 
                 if (config.ban_url):
                     requests.request('BAN', f"{config.ban_url}/{post_model['service']}/user/" + post_model['"user"'])
-                delete_artist_cache_keys('patreon', user_id)
 
                 log(import_id, f"Finished importing {post_id} from user {user_id}", to_client=False)
             except Exception as e:
@@ -884,6 +883,8 @@ def import_campaign_page(url, key, import_id, contributor_id = None, allowed_to_
                 log(import_id, f"Status code {e.response.status_code} when contacting Patreon API.", 'exception')
                 return
         else:
+            delete_artist_cache_keys('patreon', user_id)
+            update_artist('patreon', user_id)
             log(import_id, f"Finished scanning for posts.")
             return
 
