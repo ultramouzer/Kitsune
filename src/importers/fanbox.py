@@ -391,15 +391,23 @@ def import_posts_via_id(import_id, key, campaign_id, contributor_id=None, allowe
                 except Exception as e:
                     log(import_id, f'Error importing post {post_id} from user {user_id}', 'exception')
                     continue
-        
-        ##next_url = scraper_data['body'].get('nextUrl')
-        ##if next_url:
-        ##    log(import_id, f'Finished processing page ({url}). Processing {next_url}')
-        ##    import_posts(import_id, key, next_url) #this is an issue. old code needs to be rewritten
-        ##else:
-        ##    log(import_id, f'Finished scanning for posts')
-        ##    index_artists()
-        # this block's functionality has been moved to import_posts()
+            
+            if scraper_data['data'].get('nextUrl'):
+                url = scraper_data['data'].get('nextUrl')
+                try:
+                    scraper = create_scrapper_session().get(
+                        url,
+                        cookies={ 'FANBOXSESSID': key },
+                        headers={ 'origin': 'https://fanbox.cc' },
+                        proxies=get_proxy()
+                    )
+                    scraper_data = scraper.json()
+                    scraper.raise_for_status()
+                except requests.HTTPError as e:
+                    log(import_id, f'HTTP error when contacting Fanbox API ({url}). Stopping import.', 'exception')
+                    return
+            else:
+                return
     else:
         log(import_id, f'No posts detected.')
 
@@ -422,11 +430,3 @@ def import_posts(import_id, key, contributor_id = None, allowed_to_auto_import =
         log(import_id, f'Finished scanning for posts')
     else:
         log(import_id, f"No active subscriptions or invalid key. No posts will be imported.", to_client = True)
-
-if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        key = sys.argv[1]
-        import_id = get_import_id(key)
-        import_posts(import_id, sys.argv[1])
-    else:
-        print('Argument required - Login token')
